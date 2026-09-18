@@ -934,8 +934,10 @@ class CameraWindow(QMainWindow):
         return recommended or (candidates[0][0] if candidates else None)
 
     def choose_folder(self):
-        start = str(self.output_dir or Path.home())
-        name = QFileDialog.getExistingDirectory(self, "选择图片保存与标定目录", start)
+        start = str(capture_root(self.output_dir) if self.output_dir else Path.home() / "桌面")
+        name = QFileDialog.getExistingDirectory(
+            self, "选择图片保存与标定目录", start,
+            options=QFileDialog.ShowDirsOnly | QFileDialog.DontUseNativeDialog)
         if name:
             try:
                 self.set_output_dir(name)

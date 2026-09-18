@@ -81,8 +81,11 @@ class StereoCalibrationDialog(QDialog):
         layout.addWidget(self.log, 1)
 
     def choose_folder(self, index):
-        name = QFileDialog.getExistingDirectory(self, f"选择相机 {index + 1} 的外参配对照片文件夹",
-                                                self.folders[index].text() or str(Path.home()))
+        current = self.folders[index].text()
+        start = str(Path(current).parent if current else Path.home() / "桌面")
+        name = QFileDialog.getExistingDirectory(
+            self, f"选择相机 {index + 1} 的外参配对照片文件夹", start,
+            options=QFileDialog.ShowDirsOnly | QFileDialog.DontUseNativeDialog)
         if name:
             self.folders[index].setText(name)
 
