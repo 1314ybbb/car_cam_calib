@@ -1,0 +1,20 @@
+{
+  "image": "/home/ybbb/桌面/相机内参标定/preview_DB2189859_slider_fit_20260917/frame_0036.png",
+  "intrinsics": "/home/ybbb/桌面/相机内参标定/DB2189859/calibration_recommended_20260917/intrinsics.json",
+  "camera_model": "MV-CS023-10GC",
+  "camera_serial": "DB2189859",
+  "identity_verified_from_image_json": true,
+  "square_mm": 50.0,
+  "detected_inner_corners": [
+    9,
+    6
+  ],
+  "board_center_camera_xyz_mm": [
+    -32.46383802704045,
+    -105.10338155873762,
+    1310.3203484676153
+  ],
+  "optical_axis_depth_mm": 1310.3203484676153,
+  "optical_center_to_board_center_mm": 1314.9296700595132,
+  "reprojection_rms_px": 0.06740495562553406
+}

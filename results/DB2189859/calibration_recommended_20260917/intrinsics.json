@@ -1,0 +1,528 @@
+{
+  "status": "estimated_from_images",
+  "image_source": "live_preview",
+  "camera_model": "MV-CS023-10GC",
+  "camera_serial": "DB2189859",
+  "lens_expected": "MVL-KF0814M-12MPE",
+  "image_width": 1920,
+  "image_height": 1200,
+  "model": "OpenCV pinhole, k1 k2 p1 p2 fitted, k3 fixed to zero, plumb_bob",
+  "calibration_flags": 128,
+  "K": [
+    [
+      1402.1288320839608,
+      0.0,
+      961.7792047532819
+    ],
+    [
+      0.0,
+      1398.8292802550757,
+      619.3782199805099
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "D_order": [
+    "k1",
+    "k2",
+    "p1",
+    "p2",
+    "k3"
+  ],
+  "D": [
+    -0.13038228783007313,
+    0.09270544774966229,
+    -0.0011088500148475006,
+    0.0011833458705601293,
+    0.0
+  ],
+  "intrinsic_standard_deviation_order": [
+    "fx",
+    "fy",
+    "cx",
+    "cy",
+    "k1",
+    "k2",
+    "p1",
+    "p2",
+    "k3"
+  ],
+  "intrinsic_standard_deviation": [
+    2.3003823913246606,
+    2.233009819132195,
+    0.7877680625433285,
+    1.1066071082360827,
+    0.0009383791253304253,
+    0.002558854408156659,
+    0.0001153192166958855,
+    0.0001247634735997518,
+    0.0
+  ],
+  "calibration_rms_px": 0.11634755487506196,
+  "square_mm": 50.0,
+  "board_inner_corners": [
+    9,
+    6
+  ],
+  "total_images": 34,
+  "used_images": 34,
+  "failed_images": [],
+  "camera_settings": {
+    "Width": 1920,
+    "Height": 1200,
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "PixelFormat": 17301513,
+    "TriggerMode": 0,
+    "ExposureAuto": 0,
+    "GainAuto": 0,
+    "BalanceWhiteAuto": 1,
+    "ExposureTime": 5000.0,
+    "Gain": 15.006199836730957
+  },
+  "board_center_region_counts": [
+    [
+      0,
+      2,
+      0
+    ],
+    [
+      1,
+      26,
+      1
+    ],
+    [
+      0,
+      4,
+      0
+    ]
+  ],
+  "detected_corner_bounds_normalized_xyxy": [
+    0.10516920089721679,
+    0.1676809565226237,
+    0.7927793502807617,
+    0.8461585489908854
+  ],
+  "board_tilt_degrees": [
+    2.815847455684442,
+    2.437755852838031,
+    2.273860358912153,
+    32.40059564266115,
+    23.014598108383456,
+    11.888699342816476,
+    13.962095146314812,
+    5.965912411662535,
+    16.32040412542297,
+    3.846813537008273,
+    1.6093883729469398,
+    10.751544735653273,
+    23.053519759288353,
+    12.572505147332057,
+    23.835320387888874,
+    1.7553248983877825,
+    2.929081522248407,
+    5.524158196750856,
+    18.462491278721153,
+    2.775903983792829,
+    5.075402115506589,
+    5.211949920841689,
+    5.766693182094675,
+    15.678514837139316,
+    28.73661384228686,
+    11.882234094435157,
+    25.380873657488877,
+    19.00360789142524,
+    2.4210863672709513,
+    19.499612474186332,
+    9.97640708498021,
+    14.652248905150206,
+    13.610416883743673,
+    15.234935241022626
+  ],
+  "board_center_distance_mm": [
+    3065.860989024561,
+    3104.231231150261,
+    3123.9866349117333,
+    3132.651412144015,
+    3138.172719779343,
+    3126.6347703378374,
+    3135.9461703016245,
+    3131.349476522954,
+    3141.66103211154,
+    3143.0737164401353,
+    2086.9085833385816,
+    2099.6862659250314,
+    2112.1562108930043,
+    2099.896229485151,
+    2105.785963460666,
+    2170.198275900769,
+    2169.315349894037,
+    2166.539388895286,
+    2176.6399866339148,
+    2166.6499529828893,
+    1160.2120634703042,
+    1208.9508297849934,
+    1211.590280293205,
+    1213.2820674946001,
+    1225.8116936858928,
+    1177.280881705426,
+    1172.0611182401913,
+    1141.0973149495196,
+    1128.466169134837,
+    1139.0828629445466,
+    645.0988687570148,
+    662.6936338535019,
+    652.047432407807,
+    663.9773810715283
+  ],
+  "warnings": [
+    "Detected corners do not reach near all four sides of the image"
+  ],
+  "images": [
+    {
+      "file": "frame_0001.png",
+      "board_center_px": [
+        915.6354370117188,
+        481.30267333984375
+      ],
+      "board_area_fraction": 0.00912954867400832,
+      "sharpness_laplacian_variance": 194.63939811815723,
+      "reprojection_rms_px": 0.03757453750528116
+    },
+    {
+      "file": "frame_0002.png",
+      "board_center_px": [
+        734.7473754882812,
+        479.7900390625
+      ],
+      "board_area_fraction": 0.009052551195050102,
+      "sharpness_laplacian_variance": 194.16622569341294,
+      "reprojection_rms_px": 0.05239130279257599
+    },
+    {
+      "file": "frame_0003.png",
+      "board_center_px": [
+        1093.4859619140625,
+        485.0659484863281
+      ],
+      "board_area_fraction": 0.008791519465237393,
+      "sharpness_laplacian_variance": 197.37758103806766,
+      "reprojection_rms_px": 0.052239176415378376
+    },
+    {
+      "file": "frame_0004.png",
+      "board_center_px": [
+        905.2086791992188,
+        483.04534912109375
+      ],
+      "board_area_fraction": 0.007600911628790426,
+      "sharpness_laplacian_variance": 192.18672209678832,
+      "reprojection_rms_px": 0.13065840782981158
+    },
+    {
+      "file": "frame_0005.png",
+      "board_center_px": [
+        907.8030395507812,
+        483.0702819824219
+      ],
+      "board_area_fraction": 0.007905067951118123,
+      "sharpness_laplacian_variance": 202.97248133472868,
+      "reprojection_rms_px": 0.10732247625390917
+    },
+    {
+      "file": "frame_0006.png",
+      "board_center_px": [
+        901.8577880859375,
+        482.70062255859375
+      ],
+      "board_area_fraction": 0.00852411782322977,
+      "sharpness_laplacian_variance": 201.93948000212214,
+      "reprojection_rms_px": 0.06657575836187292
+    },
+    {
+      "file": "frame_0007.png",
+      "board_center_px": [
+        896.421875,
+        483.0133056640625
+      ],
+      "board_area_fraction": 0.008576891140969463,
+      "sharpness_laplacian_variance": 199.16269353790207,
+      "reprojection_rms_px": 0.0553673284785388
+    },
+    {
+      "file": "frame_0008.png",
+      "board_center_px": [
+        890.279541015625,
+        646.702392578125
+      ],
+      "board_area_fraction": 0.008686883509125134,
+      "sharpness_laplacian_variance": 237.67598415445872,
+      "reprojection_rms_px": 0.055707060922722706
+    },
+    {
+      "file": "frame_0009.png",
+      "board_center_px": [
+        892.1390380859375,
+        933.9230346679688
+      ],
+      "board_area_fraction": 0.009057547554928332,
+      "sharpness_laplacian_variance": 251.33522705002093,
+      "reprojection_rms_px": 0.047633672511379815
+    },
+    {
+      "file": "frame_0010.png",
+      "board_center_px": [
+        948.280029296875,
+        422.3463134765625
+      ],
+      "board_area_fraction": 0.00877598115612798,
+      "sharpness_laplacian_variance": 179.68888408837418,
+      "reprojection_rms_px": 0.04465736414008738
+    },
+    {
+      "file": "frame_0011.png",
+      "board_center_px": [
+        924.7647705078125,
+        413.1095886230469
+      ],
+      "board_area_fraction": 0.01981800144817114,
+      "sharpness_laplacian_variance": 205.1004451565025,
+      "reprojection_rms_px": 0.04225224168693786
+    },
+    {
+      "file": "frame_0012.png",
+      "board_center_px": [
+        919.5625,
+        414.31134033203125
+      ],
+      "board_area_fraction": 0.019143554082149624,
+      "sharpness_laplacian_variance": 207.37948740755633,
+      "reprojection_rms_px": 0.06272793876723151
+    },
+    {
+      "file": "frame_0013.png",
+      "board_center_px": [
+        919.2090454101562,
+        415.2073059082031
+      ],
+      "board_area_fraction": 0.017614472990705204,
+      "sharpness_laplacian_variance": 204.87557243071657,
+      "reprojection_rms_px": 0.09713285418742762
+    },
+    {
+      "file": "frame_0014.png",
+      "board_center_px": [
+        921.1824340820312,
+        414.5775451660156
+      ],
+      "board_area_fraction": 0.019244041779741868,
+      "sharpness_laplacian_variance": 215.4557104450275,
+      "reprojection_rms_px": 0.05171327711666301
+    },
+    {
+      "file": "frame_0015.png",
+      "board_center_px": [
+        921.0668334960938,
+        414.93182373046875
+      ],
+      "board_area_fraction": 0.018089283701639133,
+      "sharpness_laplacian_variance": 212.59909326523007,
+      "reprojection_rms_px": 0.0826203948749224
+    },
+    {
+      "file": "frame_0016.png",
+      "board_center_px": [
+        685.527099609375,
+        415.4216003417969
+      ],
+      "board_area_fraction": 0.018712189586690027,
+      "sharpness_laplacian_variance": 184.5130919897454,
+      "reprojection_rms_px": 0.06539208058990988
+    },
+    {
+      "file": "frame_0017.png",
+      "board_center_px": [
+        1206.0482177734375,
+        422.97930908203125
+      ],
+      "board_area_fraction": 0.018452856188377255,
+      "sharpness_laplacian_variance": 190.407637924798,
+      "reprojection_rms_px": 0.0546862778061564
+    },
+    {
+      "file": "frame_0018.png",
+      "board_center_px": [
+        961.6724243164062,
+        591.0883178710938
+      ],
+      "board_area_fraction": 0.017991631654411727,
+      "sharpness_laplacian_variance": 228.70727753381743,
+      "reprojection_rms_px": 0.04629270559786939
+    },
+    {
+      "file": "frame_0019.png",
+      "board_center_px": [
+        1026.06103515625,
+        931.9949951171875
+      ],
+      "board_area_fraction": 0.01877817397431338,
+      "sharpness_laplacian_variance": 209.69787094285286,
+      "reprojection_rms_px": 0.048564395059769075
+    },
+    {
+      "file": "frame_0020.png",
+      "board_center_px": [
+        954.3092651367188,
+        384.7228698730469
+      ],
+      "board_area_fraction": 0.018508594069987644,
+      "sharpness_laplacian_variance": 184.66854496382805,
+      "reprojection_rms_px": 0.04213553735550396
+    },
+    {
+      "file": "frame_0021.png",
+      "board_center_px": [
+        850.4296875,
+        448.7598876953125
+      ],
+      "board_area_fraction": 0.06267278102782681,
+      "sharpness_laplacian_variance": 207.1388761388616,
+      "reprojection_rms_px": 0.08693973769991407
+    },
+    {
+      "file": "frame_0022.png",
+      "board_center_px": [
+        566.3484497070312,
+        441.8013000488281
+      ],
+      "board_area_fraction": 0.05986675922071441,
+      "sharpness_laplacian_variance": 209.2104465755088,
+      "reprojection_rms_px": 0.14480056715496084
+    },
+    {
+      "file": "frame_0023.png",
+      "board_center_px": [
+        1286.71533203125,
+        471.2806396484375
+      ],
+      "board_area_fraction": 0.05930175244782569,
+      "sharpness_laplacian_variance": 228.54850502316134,
+      "reprojection_rms_px": 0.12923623260040998
+    },
+    {
+      "file": "frame_0024.png",
+      "board_center_px": [
+        872.8049926757812,
+        461.2845153808594
+      ],
+      "board_area_fraction": 0.054476548753983584,
+      "sharpness_laplacian_variance": 217.57548812748638,
+      "reprojection_rms_px": 0.13384637268995944
+    },
+    {
+      "file": "frame_0025.png",
+      "board_center_px": [
+        891.7499389648438,
+        464.3033142089844
+      ],
+      "board_area_fraction": 0.04835752804677355,
+      "sharpness_laplacian_variance": 219.5836692703241,
+      "reprojection_rms_px": 0.18822280192729873
+    },
+    {
+      "file": "frame_0026.png",
+      "board_center_px": [
+        881.492431640625,
+        453.7376708984375
+      ],
+      "board_area_fraction": 0.06042350778764012,
+      "sharpness_laplacian_variance": 230.23736803326352,
+      "reprojection_rms_px": 0.09242490406190605
+    },
+    {
+      "file": "frame_0027.png",
+      "board_center_px": [
+        879.3968505859375,
+        451.7940979003906
+      ],
+      "board_area_fraction": 0.057672497510662654,
+      "sharpness_laplacian_variance": 227.11743140620183,
+      "reprojection_rms_px": 0.149624197656237
+    },
+    {
+      "file": "frame_0028.png",
+      "board_center_px": [
+        950.6823120117188,
+        817.3012084960938
+      ],
+      "board_area_fraction": 0.06501945011559372,
+      "sharpness_laplacian_variance": 165.26089460995357,
+      "reprojection_rms_px": 0.09081323842591607
+    },
+    {
+      "file": "frame_0029.png",
+      "board_center_px": [
+        862.7843017578125,
+        366.95587158203125
+      ],
+      "board_area_fraction": 0.06737076607892797,
+      "sharpness_laplacian_variance": 193.32537223008828,
+      "reprojection_rms_px": 0.09958067054141317
+    },
+    {
+      "file": "frame_0030.png",
+      "board_center_px": [
+        905.894775390625,
+        832.9273681640625
+      ],
+      "board_area_fraction": 0.06554810317809703,
+      "sharpness_laplacian_variance": 162.41219567653164,
+      "reprojection_rms_px": 0.09257720372540863
+    },
+    {
+      "file": "frame_0031.png",
+      "board_center_px": [
+        769.382568359375,
+        462.4964904785156
+      ],
+      "board_area_fraction": 0.19733997828239747,
+      "sharpness_laplacian_variance": 104.25639790984259,
+      "reprojection_rms_px": 0.24272308787317096
+    },
+    {
+      "file": "frame_0032.png",
+      "board_center_px": [
+        767.5761108398438,
+        601.8583984375
+      ],
+      "board_area_fraction": 0.18564971340757963,
+      "sharpness_laplacian_variance": 102.0069842120701,
+      "reprojection_rms_px": 0.2156845778631059
+    },
+    {
+      "file": "frame_0033.png",
+      "board_center_px": [
+        967.1914672851562,
+        503.8454895019531
+      ],
+      "board_area_fraction": 0.18942776118274296,
+      "sharpness_laplacian_variance": 110.65824761378143,
+      "reprojection_rms_px": 0.23552456794990123
+    },
+    {
+      "file": "frame_0034.png",
+      "board_center_px": [
+        658.9987182617188,
+        602.656982421875
+      ],
+      "board_area_fraction": 0.1900769372951548,
+      "sharpness_laplacian_variance": 106.52331017963755,
+      "reprojection_rms_px": 0.23360391376219988
+    }
+  ],
+  "validation": null,
+  "opencv_version": "4.5.4"
+}

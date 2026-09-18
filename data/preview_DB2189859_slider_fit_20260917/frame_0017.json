@@ -1,0 +1,35 @@
+{
+  "camera_model": "MV-CS023-10GC",
+  "camera_serial": "DB2189859",
+  "camera_ip": "192.168.1.213",
+  "host_interface_ip": "192.168.1.88",
+  "sdk_version": "0x04080003",
+  "settings": {
+    "Width": 1920,
+    "Height": 1200,
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "PixelFormat": 17301513,
+    "TriggerMode": 0,
+    "ExposureAuto": 0,
+    "GainAuto": 0,
+    "BalanceWhiteAuto": 1,
+    "ExposureTime": 5000.0,
+    "Gain": 15.006199836730957
+  },
+  "frame": {
+    "frame_number": 9232,
+    "pixel_type": 17301513,
+    "lost_packets": 0,
+    "device_timestamp_raw": 303190760710,
+    "width": 1920,
+    "height": 1200
+  },
+  "image_stats": {
+    "mean": 102.39618663194445,
+    "min": 2,
+    "max": 255
+  },
+  "conversion": "MVS RGB8 then OpenCV BGR8",
+  "capture_unix_ns": 1789638411823523362
+}
