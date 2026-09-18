@@ -20,7 +20,7 @@ case "${1:-}" in
     ;;
   mvs)
     shift
-    mvs_root="${MVS_ROOT:-/home/ybbb/.local/opt/MVS-5.0.1}"
+    mvs_root="${MVS_ROOT:-$HOME/.local/opt/MVS-5.0.1}"
     export MVCAM_SDK_PATH="$mvs_root"
     export MVCAM_COMMON_RUNENV="$mvs_root/lib"
     export MVCAM_SOFTWARE_LIBENV="$mvs_root/lib"

@@ -1,0 +1,20 @@
+image_width: 1920
+image_height: 1200
+camera_name: mv_cs023_10gc_DB2189878
+distortion_model: plumb_bob
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [1397.97834988, 0, 964.040659883, 0, 1394.87871451, 607.090367553, 0, 0, 1]
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data: [-0.134135311587, 0.0939930887674, -0.000408288610333, 0.000862627676943, 0]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [1397.97834988, 0, 964.040659883, 0, 0, 1394.87871451, 607.090367553, 0, 0, 0, 1, 0]

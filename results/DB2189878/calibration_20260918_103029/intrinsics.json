@@ -1,0 +1,480 @@
+{
+  "status": "estimated_from_images",
+  "image_source": "mvs_gui",
+  "camera_model": "MV-CS023-10GC",
+  "camera_serial": "DB2189878",
+  "lens_expected": "MVL-KF0814M-12MPE",
+  "image_width": 1920,
+  "image_height": 1200,
+  "model": "OpenCV pinhole, k1 k2 p1 p2 fitted, k3 fixed to zero, plumb_bob",
+  "calibration_flags": 128,
+  "K": [
+    [
+      1397.978349878998,
+      0.0,
+      964.0406598829244
+    ],
+    [
+      0.0,
+      1394.878714509364,
+      607.0903675528276
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "D_order": [
+    "k1",
+    "k2",
+    "p1",
+    "p2",
+    "k3"
+  ],
+  "D": [
+    -0.13413531158667502,
+    0.093993088767406,
+    -0.0004082886103325898,
+    0.0008626276769430125,
+    0.0
+  ],
+  "intrinsic_standard_deviation_order": [
+    "fx",
+    "fy",
+    "cx",
+    "cy",
+    "k1",
+    "k2",
+    "p1",
+    "p2",
+    "k3"
+  ],
+  "intrinsic_standard_deviation": [
+    1.1774834097288225,
+    1.1459789319491824,
+    0.39026733169872785,
+    0.5466954333467487,
+    0.0006637442989666072,
+    0.0018824702319580019,
+    6.069270712555341e-05,
+    7.407895279090404e-05,
+    0.0
+  ],
+  "calibration_rms_px": 0.06435575064424626,
+  "square_mm": 50.0,
+  "board_inner_corners": [
+    9,
+    6
+  ],
+  "total_images": 30,
+  "used_images": 30,
+  "failed_images": [],
+  "camera_settings": {
+    "Width": 1920,
+    "Height": 1200,
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "PixelFormat": 17301513,
+    "TriggerMode": 0,
+    "ExposureAuto": 0,
+    "GainAuto": 0,
+    "BalanceWhiteAuto": 1,
+    "ExposureTime": 5000.0,
+    "Gain": 15.006199836730957
+  },
+  "board_center_region_counts": [
+    [
+      0,
+      2,
+      0
+    ],
+    [
+      1,
+      25,
+      1
+    ],
+    [
+      0,
+      1,
+      0
+    ]
+  ],
+  "detected_corner_bounds_normalized_xyxy": [
+    0.13663665453592935,
+    0.15650665283203125,
+    0.863453992207845,
+    0.7397666422526041
+  ],
+  "board_tilt_degrees": [
+    4.885948937904721,
+    4.978063071703294,
+    5.02089333056654,
+    10.618413011669483,
+    24.45041753320477,
+    14.248035896321126,
+    28.39604966495984,
+    12.48592873872967,
+    1.680891452626793,
+    2.350216940176572,
+    2.126948169117893,
+    2.487444365711662,
+    8.644687821403343,
+    18.61920571118015,
+    15.780510423716935,
+    24.700885251018423,
+    13.133154555363562,
+    8.49896170376539,
+    3.903821982997526,
+    3.5710823413167283,
+    4.376209043279651,
+    14.072324425234063,
+    22.190615690741357,
+    17.800424140717826,
+    30.526190844227607,
+    11.8928538261523,
+    0.8826867385385431,
+    13.196206004254929,
+    13.059842019191606,
+    17.294283430662997
+  ],
+  "board_center_distance_mm": [
+    3125.6462863591996,
+    3135.6794446135364,
+    3153.5933980795203,
+    3134.0654619391826,
+    3141.1550831268373,
+    3089.670553270039,
+    3095.326208795839,
+    3046.038601440534,
+    3032.6987116969344,
+    2149.348285162124,
+    2197.5950389549425,
+    2154.8934009541,
+    2126.288084648212,
+    2037.3402608238002,
+    2077.7695845331546,
+    2121.9878705450406,
+    2065.395040542069,
+    2070.373936376519,
+    1188.6678519992176,
+    1231.170830913378,
+    1240.8786563113756,
+    1217.6304775233943,
+    1212.0694955690128,
+    1239.777990908244,
+    1242.340196660228,
+    1207.0248927091602,
+    1210.1310496181588,
+    580.0858352018314,
+    597.118680497512,
+    593.027164589416
+  ],
+  "warnings": [
+    "Detected corners do not reach near all four sides of the image"
+  ],
+  "images": [
+    {
+      "file": "frame_0001.png",
+      "board_center_px": [
+        881.92431640625,
+        618.87109375
+      ],
+      "board_area_fraction": 0.008677089283820048,
+      "sharpness_laplacian_variance": 135.1248893112369,
+      "reprojection_rms_px": 0.04072579398533386
+    },
+    {
+      "file": "frame_0002.png",
+      "board_center_px": [
+        704.12451171875,
+        614.61083984375
+      ],
+      "board_area_fraction": 0.008801657250201161,
+      "sharpness_laplacian_variance": 118.637435324978,
+      "reprojection_rms_px": 0.05114833637052231
+    },
+    {
+      "file": "frame_0003.png",
+      "board_center_px": [
+        1058.903564453125,
+        623.7932739257812
+      ],
+      "board_area_fraction": 0.008476973938739522,
+      "sharpness_laplacian_variance": 120.03830584337001,
+      "reprojection_rms_px": 0.04886875887256681
+    },
+    {
+      "file": "frame_0004.png",
+      "board_center_px": [
+        868.4743041992188,
+        619.033447265625
+      ],
+      "board_area_fraction": 0.008393643125217447,
+      "sharpness_laplacian_variance": 122.7406197260915,
+      "reprojection_rms_px": 0.06162046898848807
+    },
+    {
+      "file": "frame_0005.png",
+      "board_center_px": [
+        861.1195068359375,
+        618.9622192382812
+      ],
+      "board_area_fraction": 0.007592674516689536,
+      "sharpness_laplacian_variance": 118.3715268437017,
+      "reprojection_rms_px": 0.09703745309490043
+    },
+    {
+      "file": "frame_0006.png",
+      "board_center_px": [
+        852.2938232421875,
+        617.848876953125
+      ],
+      "board_area_fraction": 0.008791601879129302,
+      "sharpness_laplacian_variance": 121.48241490306633,
+      "reprojection_rms_px": 0.04381583460388754
+    },
+    {
+      "file": "frame_0007.png",
+      "board_center_px": [
+        848.4331665039062,
+        617.8469848632812
+      ],
+      "board_area_fraction": 0.00815846325354505,
+      "sharpness_laplacian_variance": 117.40507681688082,
+      "reprojection_rms_px": 0.07269110622214599
+    },
+    {
+      "file": "frame_0008.png",
+      "board_center_px": [
+        886.4232788085938,
+        829.1976928710938
+      ],
+      "board_area_fraction": 0.009346059569978226,
+      "sharpness_laplacian_variance": 117.63271202188655,
+      "reprojection_rms_px": 0.0364289285312032
+    },
+    {
+      "file": "frame_0009.png",
+      "board_center_px": [
+        876.6106567382812,
+        500.8907775878906
+      ],
+      "board_area_fraction": 0.009262383548050517,
+      "sharpness_laplacian_variance": 119.17051600141947,
+      "reprojection_rms_px": 0.035261380724592575
+    },
+    {
+      "file": "frame_0010.png",
+      "board_center_px": [
+        910.588134765625,
+        512.3006591796875
+      ],
+      "board_area_fraction": 0.018313199576203462,
+      "sharpness_laplacian_variance": 129.10589790770555,
+      "reprojection_rms_px": 0.028398059739434555
+    },
+    {
+      "file": "frame_0011.png",
+      "board_center_px": [
+        648.5540161132812,
+        526.908447265625
+      ],
+      "board_area_fraction": 0.017974103410861263,
+      "sharpness_laplacian_variance": 123.32993278520368,
+      "reprojection_rms_px": 0.040695188789758925
+    },
+    {
+      "file": "frame_0012.png",
+      "board_center_px": [
+        1134.534912109375,
+        509.6259765625
+      ],
+      "board_area_fraction": 0.01825699684071919,
+      "sharpness_laplacian_variance": 133.1185808851031,
+      "reprojection_rms_px": 0.02617976077443611
+    },
+    {
+      "file": "frame_0013.png",
+      "board_center_px": [
+        878.5796508789062,
+        519.2195434570312
+      ],
+      "board_area_fraction": 0.018348795689866366,
+      "sharpness_laplacian_variance": 132.55470571468982,
+      "reprojection_rms_px": 0.03524693599290239
+    },
+    {
+      "file": "frame_0014.png",
+      "board_center_px": [
+        858.91748046875,
+        515.590087890625
+      ],
+      "board_area_fraction": 0.0188987987278322,
+      "sharpness_laplacian_variance": 129.595420672716,
+      "reprojection_rms_px": 0.05377747855145959
+    },
+    {
+      "file": "frame_0015.png",
+      "board_center_px": [
+        858.7118530273438,
+        518.6932983398438
+      ],
+      "board_area_fraction": 0.01927645031143685,
+      "sharpness_laplacian_variance": 130.15891248869696,
+      "reprojection_rms_px": 0.03103856549597674
+    },
+    {
+      "file": "frame_0016.png",
+      "board_center_px": [
+        857.4629516601562,
+        521.5262451171875
+      ],
+      "board_area_fraction": 0.017696990916886635,
+      "sharpness_laplacian_variance": 131.631134334504,
+      "reprojection_rms_px": 0.04424543144720871
+    },
+    {
+      "file": "frame_0017.png",
+      "board_center_px": [
+        814.6494750976562,
+        794.4363403320312
+      ],
+      "board_area_fraction": 0.020243978895095806,
+      "sharpness_laplacian_variance": 130.39953340191855,
+      "reprojection_rms_px": 0.03032152299680766
+    },
+    {
+      "file": "frame_0018.png",
+      "board_center_px": [
+        856.3817749023438,
+        281.7586364746094
+      ],
+      "board_area_fraction": 0.02081140938330888,
+      "sharpness_laplacian_variance": 103.82013820243158,
+      "reprojection_rms_px": 0.030606106739321622
+    },
+    {
+      "file": "frame_0019.png",
+      "board_center_px": [
+        911.749267578125,
+        477.8453063964844
+      ],
+      "board_area_fraction": 0.05924305890096164,
+      "sharpness_laplacian_variance": 211.70494661923075,
+      "reprojection_rms_px": 0.049055994284431206
+    },
+    {
+      "file": "frame_0020.png",
+      "board_center_px": [
+        604.4808959960938,
+        480.0980529785156
+      ],
+      "board_area_fraction": 0.056869637903363884,
+      "sharpness_laplacian_variance": 188.93274192525593,
+      "reprojection_rms_px": 0.07009755339739895
+    },
+    {
+      "file": "frame_0021.png",
+      "board_center_px": [
+        1322.0283203125,
+        471.9143981933594
+      ],
+      "board_area_fraction": 0.05580626780446214,
+      "sharpness_laplacian_variance": 214.2704764445522,
+      "reprojection_rms_px": 0.06081071575735243
+    },
+    {
+      "file": "frame_0022.png",
+      "board_center_px": [
+        879.1364135742188,
+        480.9010314941406
+      ],
+      "board_area_fraction": 0.054385734427015754,
+      "sharpness_laplacian_variance": 222.3917103336571,
+      "reprojection_rms_px": 0.07170166876474215
+    },
+    {
+      "file": "frame_0023.png",
+      "board_center_px": [
+        882.9995727539062,
+        479.8106994628906
+      ],
+      "board_area_fraction": 0.052161964168229234,
+      "sharpness_laplacian_variance": 210.96735055303105,
+      "reprojection_rms_px": 0.08721669039927817
+    },
+    {
+      "file": "frame_0024.png",
+      "board_center_px": [
+        871.2742309570312,
+        484.6160888671875
+      ],
+      "board_area_fraction": 0.05333968125659521,
+      "sharpness_laplacian_variance": 207.75677199826393,
+      "reprojection_rms_px": 0.05485542501450446
+    },
+    {
+      "file": "frame_0025.png",
+      "board_center_px": [
+        870.104736328125,
+        484.736572265625
+      ],
+      "board_area_fraction": 0.049245582321792124,
+      "sharpness_laplacian_variance": 199.2865295220804,
+      "reprojection_rms_px": 0.07566463219470013
+    },
+    {
+      "file": "frame_0026.png",
+      "board_center_px": [
+        867.5261840820312,
+        692.41845703125
+      ],
+      "board_area_fraction": 0.05744861958356584,
+      "sharpness_laplacian_variance": 206.48654823765435,
+      "reprojection_rms_px": 0.04576856624140247
+    },
+    {
+      "file": "frame_0027.png",
+      "board_center_px": [
+        891.3928833007812,
+        374.7755432128906
+      ],
+      "board_area_fraction": 0.05846321817741328,
+      "sharpness_laplacian_variance": 189.2347295979362,
+      "reprojection_rms_px": 0.04622781071018281
+    },
+    {
+      "file": "frame_0028.png",
+      "board_center_px": [
+        757.3910522460938,
+        512.9091796875
+      ],
+      "board_area_fraction": 0.23999881843314375,
+      "sharpness_laplacian_variance": 164.67288918266482,
+      "reprojection_rms_px": 0.14551876568706823
+    },
+    {
+      "file": "frame_0029.png",
+      "board_center_px": [
+        1159.1513671875,
+        505.90338134765625
+      ],
+      "board_area_fraction": 0.22564843656579392,
+      "sharpness_laplacian_variance": 175.85268882804806,
+      "reprojection_rms_px": 0.09948581303591757
+    },
+    {
+      "file": "frame_0030.png",
+      "board_center_px": [
+        1161.003662109375,
+        501.8752746582031
+      ],
+      "board_area_fraction": 0.2207566341190951,
+      "sharpness_laplacian_variance": 170.30862195373362,
+      "reprojection_rms_px": 0.12138681465352018
+    }
+  ],
+  "validation": null,
+  "opencv_version": "4.5.4"
+}

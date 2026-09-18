@@ -1,0 +1,351 @@
+{
+  "method": "OpenCV stereoCalibrate, CALIB_FIX_INTRINSIC, 9x6 chessboard",
+  "camera1_image_size": [
+    1920,
+    1200
+  ],
+  "camera2_image_size": [
+    1920,
+    1200
+  ],
+  "square_mm": 50.0,
+  "stereo_rms_px": 0.1453543595676986,
+  "used_pairs": 7,
+  "pair_ids": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "camera2_corner_order_reversed_pairs": [],
+  "R_camera1_to_camera2": [
+    [
+      0.7367574771579692,
+      0.12143802507704746,
+      -0.6651625560095898
+    ],
+    [
+      -0.03248760120200519,
+      0.9889612246124707,
+      0.14456919444038405
+    ],
+    [
+      0.6753761734174252,
+      -0.08490289911651126,
+      0.7325698069820019
+    ]
+  ],
+  "T_camera1_to_camera2_mm": [
+    -147.81301896085606,
+    -13.504282980212919,
+    -61.79600085730486
+  ],
+  "camera2_center_in_camera1_mm": [
+    150.19917177222968,
+    26.05867371031565,
+    -51.09749777125716
+  ],
+  "baseline_mm": 160.7787297968487,
+  "rotation_angle_deg": 43.18529822377331,
+  "yaw_about_camera_y_deg": -42.2389842896213,
+  "E": [
+    [
+      -11.128074795653154,
+      62.26040145950334,
+      -0.959031912667065
+    ],
+    [
+      54.30072543698064,
+      -20.054138138711163,
+      149.38774065099702
+    ],
+    [
+      14.751471871793695,
+      -144.54141078999592,
+      -30.351752463167397
+    ]
+  ],
+  "F": [
+    [
+      3.837279626273231e-07,
+      -2.152079108419534e-06,
+      0.0010098644631012157
+    ],
+    [
+      -1.8766057468740104e-06,
+      6.947272205057333e-07,
+      -0.005867259826944367
+    ],
+    [
+      5.822594041147675e-05,
+      0.008637489517489595,
+      1.0
+    ]
+  ],
+  "per_pair": [
+    {
+      "pair_id": 1,
+      "camera1_image": "frame_0001.png",
+      "camera2_image": "frame_0001.png",
+      "R_camera1_to_camera2": [
+        [
+          0.7386549994220842,
+          0.120781954690733,
+          -0.6631745707201434
+        ],
+        [
+          -0.03121753487210019,
+          0.9888901889032558,
+          0.14533292747134866
+        ],
+        [
+          0.6733604215761941,
+          -0.08664821816961271,
+          0.7342191967953177
+        ]
+      ],
+      "T_camera1_to_camera2_mm": [
+        -155.63514036109086,
+        -17.913967135269303,
+        -63.70587785580483
+      ],
+      "camera1_reprojection_rms_px": 0.0687602311372757,
+      "camera2_reprojection_rms_px": 0.046758536249399185,
+      "relative_rotation_difference_deg": 0.18125040037845486,
+      "relative_translation_difference_mm": 9.180333746480349,
+      "consensus_rotation_difference_deg": 0.7260628643862956,
+      "consensus_translation_difference_mm": 40.22790062369018
+    },
+    {
+      "pair_id": 2,
+      "camera1_image": "frame_0002.png",
+      "camera2_image": "frame_0002.png",
+      "R_camera1_to_camera2": [
+        [
+          0.736306751864026,
+          0.12024532105529417,
+          -0.6658779392078977
+        ],
+        [
+          -0.032236112188547175,
+          0.9891996506016896,
+          0.14298560878795702
+        ],
+        [
+          0.6758795752428202,
+          -0.08381595321777657,
+          0.7322306233392457
+        ]
+      ],
+      "T_camera1_to_camera2_mm": [
+        -146.98320637242864,
+        -9.046051061043556,
+        -58.30623530008961
+      ],
+      "camera1_reprojection_rms_px": 0.03735185042023659,
+      "camera2_reprojection_rms_px": 0.04699421301484108,
+      "relative_rotation_difference_deg": 0.10181266946408757,
+      "relative_translation_difference_mm": 5.722139846363335,
+      "consensus_rotation_difference_deg": 0.6411894873441576,
+      "consensus_translation_difference_mm": 34.5977030982088
+    },
+    {
+      "pair_id": 3,
+      "camera1_image": "frame_0003.png",
+      "camera2_image": "frame_0003.png",
+      "R_camera1_to_camera2": [
+        [
+          0.7445934055762732,
+          0.11590318389734688,
+          -0.6573789716250327
+        ],
+        [
+          -0.040231412870619064,
+          0.9908122322881756,
+          0.1291222435003207
+        ],
+        [
+          0.6663048054687594,
+          -0.06969628620364289,
+          0.7424152031704756
+        ]
+      ],
+      "T_camera1_to_camera2_mm": [
+        -180.7558400478914,
+        39.00475421029789,
+        -71.71612912465025
+      ],
+      "camera1_reprojection_rms_px": 0.058014653623104095,
+      "camera2_reprojection_rms_px": 0.039173197001218796,
+      "relative_rotation_difference_deg": 1.191638836942234,
+      "relative_translation_difference_mm": 62.776089338915135,
+      "consensus_rotation_difference_deg": 0.5388577849374687,
+      "consensus_translation_difference_mm": 27.084787608665124
+    },
+    {
+      "pair_id": 4,
+      "camera1_image": "frame_0004.png",
+      "camera2_image": "frame_0004.png",
+      "R_camera1_to_camera2": [
+        [
+          0.7328900276747955,
+          0.12019150404669876,
+          -0.669646331797487
+        ],
+        [
+          -0.03253982537673236,
+          0.9893376549879905,
+          0.14195831848579818
+        ],
+        [
+          0.6795685153825839,
+          -0.08224966126286445,
+          0.7289867118973121
+        ]
+      ],
+      "T_camera1_to_camera2_mm": [
+        -132.2517356553783,
+        -5.662454454155451,
+        -53.04706627088581
+      ],
+      "camera1_reprojection_rms_px": 0.046511076390743256,
+      "camera2_reprojection_rms_px": 0.04880521446466446,
+      "relative_rotation_difference_deg": 0.3646969131130719,
+      "relative_translation_difference_mm": 19.498504279633064,
+      "consensus_rotation_difference_deg": 0.7717613306455604,
+      "consensus_translation_difference_mm": 41.485232906909616
+    },
+    {
+      "pair_id": 5,
+      "camera1_image": "frame_0005.png",
+      "camera2_image": "frame_0005.png",
+      "R_camera1_to_camera2": [
+        [
+          0.735109155006436,
+          0.11903651985259187,
+          -0.6674165394767402
+        ],
+        [
+          -0.034940107819689994,
+          0.9898084069172638,
+          0.1380525496376528
+        ],
+        [
+          0.6770477967553488,
+          -0.07816408726065734,
+          0.7317763704653467
+        ]
+      ],
+      "T_camera1_to_camera2_mm": [
+        -141.38094448068614,
+        8.317683105753673,
+        -56.88601053784714
+      ],
+      "camera1_reprojection_rms_px": 0.07612810283899307,
+      "camera2_reprojection_rms_px": 0.07175759226083755,
+      "relative_rotation_difference_deg": 0.4279955823467181,
+      "relative_translation_difference_mm": 23.27397239219592,
+      "consensus_rotation_difference_deg": 0.4641843737645651,
+      "consensus_translation_difference_mm": 25.083286388406222
+    },
+    {
+      "pair_id": 6,
+      "camera1_image": "frame_0006.png",
+      "camera2_image": "frame_0006.png",
+      "R_camera1_to_camera2": [
+        [
+          0.7420204230149615,
+          0.11732087916369553,
+          -0.6600314410245585
+        ],
+        [
+          -0.03772480715571949,
+          0.9903146463408892,
+          0.13361788865186966
+        ],
+        [
+          0.6693149712607369,
+          -0.07424764343046325,
+          0.7392596003375687
+        ]
+      ],
+      "T_camera1_to_camera2_mm": [
+        -170.57615433426827,
+        24.265885030501096,
+        -68.16850306279593
+      ],
+      "camera1_reprojection_rms_px": 0.03978444263339043,
+      "camera2_reprojection_rms_px": 0.036014579236507416,
+      "relative_rotation_difference_deg": 0.8255387080860592,
+      "relative_translation_difference_mm": 44.55731935322011,
+      "consensus_rotation_difference_deg": 0.202092005789268,
+      "consensus_translation_difference_mm": 10.524275501277062
+    },
+    {
+      "pair_id": 7,
+      "camera1_image": "frame_0007.png",
+      "camera2_image": "frame_0007.png",
+      "R_camera1_to_camera2": [
+        [
+          0.7397561672253913,
+          0.11738549922886136,
+          -0.662556758038728
+        ],
+        [
+          -0.036936678578538995,
+          0.9902649281157492,
+          0.13420526785300102
+        ],
+        [
+          0.6718604727378925,
+          -0.07480652855667773,
+          0.7368904182154321
+        ]
+      ],
+      "T_camera1_to_camera2_mm": [
+        -160.8264661291164,
+        21.958253963125117,
+        -64.94688955618403
+      ],
+      "camera1_reprojection_rms_px": 0.03918414190411568,
+      "camera2_reprojection_rms_px": 0.04982494190335274,
+      "relative_rotation_difference_deg": 0.6947669451669563,
+      "relative_translation_difference_mm": 37.90606064010665,
+      "consensus_rotation_difference_deg": 1.2074182697257333e-06,
+      "consensus_translation_difference_mm": 0.0
+    }
+  ],
+  "camera1": {
+    "model": "MV-CS023-10GC",
+    "serial": "DB2189859",
+    "images": "/home/ybbb/桌面/outside/cam1_parm_outside_DB2189859",
+    "intrinsics": "/home/ybbb/桌面/cam1_parm_inside_DB2189859/calibration_20260918_111338/intrinsics.json"
+  },
+  "camera2": {
+    "model": "MV-CS023-10GC",
+    "serial": "DB2189878",
+    "images": "/home/ybbb/桌面/outside/cam2_parm_outside_DB2189878",
+    "intrinsics": "/home/ybbb/桌面/cam2_parm_inside_DB2189878/calibration_20260918_103029/intrinsics.json"
+  },
+  "skipped_pairs": [],
+  "expected_angle_deg": 60.0,
+  "pair_review": {
+    "accepted": true,
+    "reasons": [],
+    "suspect_pairs": [],
+    "consensus_reference_pair_id": 7,
+    "rotation_limit_deg": 3.0,
+    "translation_limit_mm": 50.0,
+    "stereo_rms_limit_px": 1.0,
+    "note": "通过几何一致性检查不能证明拍摄时棋盘未移动；每组仍须保证两相机看到同一棋盘位姿。"
+  },
+  "warnings": [
+    "有效配对少于 10 组；建议增加不同棋盘姿态",
+    "估计的水平偏航角与预期夹角相差超过 5°；检查安装方向及拍摄配对"
+  ],
+  "photos_in_repository": false,
+  "input_paths_are_from_capture_pc": true
+}

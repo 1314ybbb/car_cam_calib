@@ -14,7 +14,7 @@ import cv2
 import numpy as np
 
 
-DEFAULT_MVS = Path.home() / ".local/opt/MVS-5.0.1"
+DEFAULT_MVS = Path(os.environ.get("MVS_ROOT", str(Path.home() / ".local/opt/MVS-5.0.1")))
 
 
 def load_sdk(root):

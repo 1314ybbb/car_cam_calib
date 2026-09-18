@@ -1,65 +1,31 @@
-# Hikrobot GigE 相机内参标定工程
+# Hikrobot 双相机标定工程
 
-本仓库保存海康机器人 GigE 相机的取帧、棋盘格采集、OpenCV 内参标定和棋盘测距工具。
+本仓库包含海康机器人 GigE 相机的取帧上位机、棋盘格内参与双相机外参算法、参数和棋盘 PDF。**队友接手请先读 [双相机交接手册](HANDOFF_TWO_CAMERAS.md)**：其中有相机序列号与物理位置绑定、上次工作 IP、网络与 SDK 配置、启动命令和故障排查。按用户要求，2026-09-18 的原始照片没有上传。
 
-## 图形上位机
+本次实采的两台相机都自报 **MV-CS023-10GC**，分辨率 1920×1200：`cam1 = DB2189859`，`cam2 = DB2189878`。原计划型号 **MV-CS050-10GC** 与实采型号不同，仓库中的参数不能直接用于计划采购的型号。本次用户提供的镜头型号为 MVL-KF0814M-12MPE；逐台镜头和最终安装状态需现场确认。
 
-```bash
-cd camera_intrinsics_mvs
-./run.sh gui --serial DB2189859
-```
+## 仓库内容
 
-需要本机安装 PyQt5、OpenCV 和 MVS SDK；这台机器已具备运行环境。在窗口中先选相机并连接，再为**每台相机选择独立的图片文件夹**。点击“保存图片 + JSON”或按空格，保存原始分辨率 PNG 与同名元数据 JSON。拍摄至少 15 张、建议 25～35 张清晰且姿态各异的 9×6 内角点棋盘照片，输入打印成品的实测格距，点击“一键生成内参”。结果写入图片文件夹下带时间戳的 `calibration_*/intrinsics.json`，并自动载入。也可以手动选择已有的内参 JSON，再打开“实时位姿”，查看棋盘坐标轴、棋盘中心相机坐标、光心距离和重投影 RMS。关闭开关后恢复普通预览。
+- `camera_intrinsics_mvs/`：上位机、MVS SDK 取帧、内参/外参求解及启动脚本。详细操作见 [脚本说明](camera_intrinsics_mvs/README.md)。
+- `results/capture_manifest_20260918.json`：两台相机内外参采集的 IP、曝光、增益、帧尺寸、数量与配对时间差摘要。2026-09-18 的原图仅在采集电脑本地。
+- `results/DB2189859/calibration_20260918_111338/`、`results/DB2189878/calibration_20260918_103029/`：当前两台相机的 `intrinsics.json` 和 ROS `camera_info.yaml`。
+- `results/stereo_20260918_current/extrinsics.json`：从本地 7 组配对照片和上述两份内参重新计算的外参；其中输入路径是采集电脑上的历史路径。
+- `data/checkerboard_50mm_10x7_600x450mm.pdf`：10×7 方格、9×6 内角点的打印棋盘。标称单格 50 mm，求绝对距离前应实测成品。
+- `data/preview_DB2189859_slider_fit_20260917/` 与 `results/DB2189859/calibration_recommended_20260917/`：较早的 cam1 标定记录，保留供历史对照。
 
-图形程序与命令行预览都独占相机；请先退出当前预览再连接图形程序。所选内参会核对相机型号、序列号、分辨率和棋盘规格。实时位姿的坐标单位取自内参 JSON 的 `square_mm`，物理距离精度取决于实际打印格距及内参质量。
+## 快速启动
 
-增益现在可拖动滑条或在“输入”框直接填写数值；按回车或点击“应用增益”后，旁边会以四位小数显示相机实际回读值。相机若只支持离散档位，设定值与回读值可能略有差异。连接相机后，程序会查找对应型号、序列号、分辨率的本地内参；也可点“查找已有内参”从带 RMS 的列表中选择。当前 `DB2189859` 的推荐文件是 `results/DB2189859/calibration_recommended_20260917/intrinsics.json`。
-
-双相机棋盘格外参：两台相机先各自求好内参，分别选择图片文件夹。勾选“外参配对采集”，照片自动写入各相机目录下的 `stereo_pairs/`，不会混入原有内参照片；旧版根目录中带 `pair_id` 的照片也会被内参算法跳过。同一组号下**固定棋盘**，分别保存两台相机的照片；两张都拍完后再点击“下一组”并改变棋盘姿态。组与组之间可以移动棋盘。拍 10～20 组后打开“双相机棋盘格外参…”，填入两台相机的 `stereo_pairs/` 目录和 `intrinsics.json`，输入实测方格边长并计算。若配对一致性检查通过，结果写入相机 1 图片目录下的 `stereo_*/extrinsics.json`，包含相机 1 到相机 2 的 `R`、`T`、基线、偏航角、重投影误差和逐组检查结果；不通过时只写 `pair_review.json` 供查错。至少需要 5 组完整有效照片；两台相机可使用不同分辨率，但各自照片须与各自内参匹配。当前实现使用完整 9×6 棋盘格。手持或运动棋盘需要双相机同步触发，手动组号和几何检查无法保证照片真的是同一瞬间的棋盘位姿。
-
-连接到两台相机后，勾选“外参配对采集”会将预览切为左右双画面；只检测到一台相机或关闭该开关时保持单画面。双画面下，程序把两台相机临时限制到 6 fps，并设置约 50 µs 的 GigE 包间隔；画面下方显示两路丢包统计。按空格一次保存同组两张原始照片及 JSON，主相机写入所选目录的 `stereo_pairs/`，另一台写入 `stereo_pairs_第二台序列号/`。外参窗口可自动填入这两个目录。拍摄仍需保持棋盘在本组期间静止；软件取最近帧并不构成硬件同步曝光。退出双画面后恢复原来的帧率和包间隔。
-
-## 当前数据
-
-本次实际采集相机是 **MV-CS023-10GC**，序列号 `DB2189859`，图像尺寸 `1920×1200`。最初计划的型号是 MV-CS050-10GC，两者的内参不能混用。
-
-- `camera_intrinsics_mvs/`：Python/MVS SDK 工具和启动脚本
-- `data/preview_DB2189859_slider_fit_20260917/`：34 张原始 PNG 及同名拍摄元数据 JSON
-- `data/checkerboard_50mm_10x7_600x450mm.pdf`：10×7 方格（9×6 内角点）棋盘
-- `results/DB2189859/calibration_recommended_20260917/`：`intrinsics.json`、ROS `camera_info.yaml`、逐张质量报告和测距结果
-- `docs_相机启动与标定命令.md`：网口、预览、采集、标定和测距命令
-- `CALIBRATION_HANDOFF_LINUX.md`：环境交接记录
-
-推荐内参结果的整体重投影 RMS 为 0.1163 px。结果对应 1920×1200、曝光 5 ms、增益约 15 的当前相机配置；改变相机、镜头对焦、ROI、分辨率或装配后应重新标定。
-
-## 快速使用
+在 Ubuntu 22.04 x86_64 上准备 MVS 5.0.1 SDK、`python3-opencv`、`python3-numpy` 和 `python3-pyqt5`。把 SDK 解压到 `$HOME/.local/opt/MVS-5.0.1`，或设置 `MVS_ROOT` 指向实际目录。**SDK 安装包与驱动未上传**；读取参数 JSON 不需要接相机，复算需要另行取得原图。
 
 ```bash
 cd camera_intrinsics_mvs
 ./run.sh probe
-./run.sh preview --serial DB2189859 --output-dir /tmp/camera_preview
+./run.sh gui --serial DB2189859 --output-dir "$HOME/camera_calib_capture" \
+  --intrinsics ../results/DB2189859/calibration_20260918_111338/intrinsics.json
 ```
 
-MVS SDK 未复制进仓库。请从海康机器人官方 MVS 5.0.1 安装包安装，或将 SDK 解压到 `~/.local/opt/MVS-5.0.1`；`run.sh` 会自动使用该路径。SDK 和相机驱动属于第三方软件，不应提交到本仓库。
+上次正常采集时主机网口 `enp88s0` 的相机网段地址为 `192.168.1.88/24`，cam1 为 `192.168.1.213/24`，cam2 为 `192.168.1.214/24`。cam2 的地址曾由 MVS Force IP 临时设置，断电后可能改变；实际使用前以 `probe` 为准。**编写交接文档时该网口为 `NO-CARRIER`，所以这些是历史工作配置，不是当前在线状态。**
 
-## 计算内参
+当前两份内参重投影 RMS 分别为 0.1150 px 和 0.0644 px。7 组外参的双目 RMS 为 0.1454 px、基线 160.78 mm、偏航角 -42.24°。外参组数少于推荐的 10～20 组，且与预期 60° 的安装角相差约 18°；应在最终安装后增加姿态并独立核查。取得原图后的复算命令与坐标变换方向见 [交接手册](HANDOFF_TWO_CAMERAS.md#6-取得原图后离线复算无需接相机)。
 
-```bash
-./run.sh calibrate \
-  --images ../data/preview_DB2189859_slider_fit_20260917 \
-  --square-mm 50 --fix-k3 \
-  --output ../results/reproduced
-```
-
-算法使用 `findChessboardCornersSB` 检出 9×6 亚像素角点，再用 `calibrateCameraExtended` 拟合针孔模型的 `K` 和 `[k1,k2,p1,p2,k3]`；推荐命令固定 `k3=0`。格距请用打印成品实测值替换 50 mm。
-
-用一张新棋盘照片测距：
-
-```bash
-./run.sh distance \
-  --image /path/to/frame.png \
-  --intrinsics ../results/DB2189859/calibration_recommended_20260917/intrinsics.json \
-  --square-mm 50
-```
-
-不要提交 SSH 私钥、MVS 安装包或相机密码。
+MVS SDK、SSH 私钥和相机密码不属于本仓库内容。
