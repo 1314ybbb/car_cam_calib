@@ -13,13 +13,14 @@ import numpy as np
 from PyQt5.QtCore import QProcess, Qt, QTimer
 from PyQt5.QtGui import QImage, QKeySequence, QPixmap
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBox,
-                             QFileDialog, QHBoxLayout, QLabel, QMainWindow,
+                             QFileDialog, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMainWindow,
                              QMessageBox, QPlainTextEdit, QPushButton, QSlider,
-                             QShortcut, QVBoxLayout, QWidget)
+                             QShortcut, QSpinBox, QVBoxLayout, QWidget)
 
 from calibrate import object_grid
 from mvs_capture import (DEFAULT_MVS, camera_metadata, check, enumerate_cameras,
                          grab_frame, load_sdk, select_camera)
+from stereo_gui import StereoCalibrationDialog
 
 
 WINDOW_TITLE = "Hikrobot 相机标定上位机"
@@ -98,6 +99,40 @@ def read_intrinsics(path, model=None, serial=None, size=None):
     return data, K, D, square_mm
 
 
+def geometry_matches(data, settings):
+    original = data.get("camera_settings") or {}
+    return all(int(original[key]) == int(settings[key]) for key in
+               ("OffsetX", "OffsetY", "BinningHorizontal", "BinningVertical",
+                "DecimationHorizontal", "DecimationVertical")
+               if key in original and key in settings)
+
+
+def find_intrinsics_files(selected, settings=None, output_dir=None):
+    """Find this camera's saved intrinsics in project and desktop result folders."""
+    serial = selected["serial"]
+    roots = [Path(__file__).resolve().parent.parent / "results" / serial,
+             Path.home() / "codex_prj/car_cam_calib/results" / serial,
+             Path.home() / "桌面/相机内参标定" / serial]
+    paths = set()
+    for root in roots:
+        if root.is_dir():
+            paths.update(path.resolve() for path in root.rglob("intrinsics.json"))
+    if output_dir is not None:
+        paths.update(path.resolve() for path in output_dir.glob("calibration_*/intrinsics.json"))
+    candidates = []
+    size = (int(settings["Width"]), int(settings["Height"])) if settings else None
+    for path in paths:
+        try:
+            data, _, _, _ = read_intrinsics(path, selected["model"], serial, size)
+            if settings and not geometry_matches(data, settings):
+                continue
+            candidates.append((path, data))
+        except (RuntimeError, OSError, ValueError, KeyError, json.JSONDecodeError):
+            continue
+    return sorted(candidates, key=lambda item: (
+        0 if "calibration_recommended" in str(item[0]) else 1, -item[0].stat().st_mtime))
+
+
 def estimate_board_pose(image, K, D, square_mm):
     """Return detected corners, pose, board-center XYZ/range, and RMS."""
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -133,6 +168,7 @@ class CameraWindow(QMainWindow):
         self.intrinsics = None
         self.calibration_process = None
         self.calibration_output = None
+        self.stereo_dialog = None
         self.pose_executor = ThreadPoolExecutor(max_workers=1)
         self.pose_future = None
         self.pose_visualization = None
@@ -173,6 +209,25 @@ class CameraWindow(QMainWindow):
         QShortcut(QKeySequence(Qt.Key_Space), self, activated=self.save_frame)
         layout.addLayout(folder_row)
 
+        pair_row = QHBoxLayout()
+        self.pair_toggle = QCheckBox("外参配对采集")
+        pair_row.addWidget(self.pair_toggle)
+        pair_row.addWidget(QLabel("组号"))
+        self.pair_spin = QSpinBox()
+        self.pair_spin.setRange(1, 999999)
+        self.pair_spin.setEnabled(False)
+        self.pair_toggle.toggled.connect(self.pair_spin.setEnabled)
+        pair_row.addWidget(self.pair_spin)
+        next_pair = QPushButton("下一组")
+        next_pair.clicked.connect(lambda: self.pair_spin.setValue(self.pair_spin.value() + 1))
+        pair_row.addWidget(next_pair)
+        pair_hint = QLabel("同一组号：棋盘不动，分别保存相机 1 和相机 2 的照片")
+        pair_row.addWidget(pair_hint, 1)
+        self.stereo_button = QPushButton("双相机棋盘格外参…")
+        self.stereo_button.clicked.connect(self.open_stereo_dialog)
+        pair_row.addWidget(self.stereo_button)
+        layout.addLayout(pair_row)
+
         calibration_row = QHBoxLayout()
         calibration_row.addWidget(QLabel("棋盘格距 (mm)"))
         self.square_spin = QDoubleSpinBox()
@@ -183,10 +238,15 @@ class CameraWindow(QMainWindow):
         self.calibrate_button = QPushButton("一键生成内参")
         self.calibrate_button.clicked.connect(self.start_calibration)
         calibration_row.addWidget(self.calibrate_button)
-        self.intrinsics_label = QLabel("内参：未选择")
-        self.intrinsics_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        calibration_row.addWidget(QLabel("内参文件"))
+        self.intrinsics_label = QLineEdit()
+        self.intrinsics_label.setReadOnly(True)
+        self.intrinsics_label.setPlaceholderText("连接相机后自动查找 intrinsics.json")
         calibration_row.addWidget(self.intrinsics_label, 1)
-        self.intrinsics_button = QPushButton("选择内参 JSON")
+        self.find_intrinsics_button = QPushButton("查找已有内参")
+        self.find_intrinsics_button.clicked.connect(self.choose_found_intrinsics)
+        calibration_row.addWidget(self.find_intrinsics_button)
+        self.intrinsics_button = QPushButton("浏览内参文件…")
         self.intrinsics_button.clicked.connect(self.choose_intrinsics)
         calibration_row.addWidget(self.intrinsics_button)
         self.pose_toggle = QCheckBox("实时位姿")
@@ -201,6 +261,13 @@ class CameraWindow(QMainWindow):
         self.gain_slider.setEnabled(False)
         self.gain_slider.valueChanged.connect(self.set_gain)
         gain_row.addWidget(self.gain_slider, 1)
+        gain_row.addWidget(QLabel("输入"))
+        self.gain_spin = QDoubleSpinBox()
+        self.gain_spin.setDecimals(2)
+        self.gain_spin.setSingleStep(0.1)
+        self.gain_spin.setEnabled(False)
+        self.gain_spin.valueChanged.connect(self.set_gain_value)
+        gain_row.addWidget(self.gain_spin)
         self.gain_label = QLabel("未连接")
         gain_row.addWidget(self.gain_label)
         layout.addLayout(gain_row)
@@ -250,6 +317,8 @@ class CameraWindow(QMainWindow):
         self.camera_combo.setEnabled(not connected)
         self.save_button.setEnabled(connected and self.output_dir is not None)
         self.gain_slider.setEnabled(connected)
+        self.gain_spin.setEnabled(connected)
+        self.find_intrinsics_button.setEnabled(connected)
         self.pose_toggle.setEnabled(connected and self.intrinsics is not None)
         if not connected or self.intrinsics is None:
             self.pose_toggle.setChecked(False)
@@ -286,6 +355,13 @@ class CameraWindow(QMainWindow):
             return
         try:
             self.selected = select_camera(self.cameras, serial)
+            if self.output_dir is not None:
+                try:
+                    validate_capture_folder(self.output_dir, self.selected["model"], serial)
+                except (RuntimeError, ValueError) as exc:
+                    self.output_dir = None
+                    self.folder_label.setText("图片目录：请为当前相机重新选择")
+                    self.set_status(f"原图片目录不能用于当前相机：{exc}")
             self.camera = self.sdk.MvCamera()
             check(self.camera.MV_CC_CreateHandle(self.selected["device_info"]), "create camera handle")
             check(self.camera.MV_CC_OpenDevice(self.sdk.MV_ACCESS_Exclusive, 0), "open camera")
@@ -301,16 +377,26 @@ class CameraWindow(QMainWindow):
             self.gain_min, self.gain_max = float(gain.fMin), float(gain.fMax)
             self.setting_gain_slider = True
             self.gain_slider.setRange(0, max(1, round((self.gain_max - self.gain_min) * 10)))
-            self.gain_slider.setValue(round((float(gain.fCurValue) - self.gain_min) * 10))
+            self.gain_spin.setRange(self.gain_min, self.gain_max)
             self.setting_gain_slider = False
-            self.gain_label.setText(f"{float(gain.fCurValue):.2f}")
+            self.update_gain_display(float(gain.fCurValue))
             settings = camera_metadata(self.camera, self.sdk)
             if self.intrinsics_path:
                 try:
                     self.set_intrinsics(self.intrinsics_path, self.selected, settings)
                 except (RuntimeError, KeyError, ValueError) as exc:
                     self.intrinsics = None
+                    self.intrinsics_label.setText("当前相机尚未选择匹配内参")
                     self.set_status(f"当前相机不能使用已选内参：{exc}")
+            if self.intrinsics is None:
+                candidates = find_intrinsics_files(self.selected, settings, self.output_dir)
+                recommended = next((path for path, _ in candidates if "calibration_recommended" in str(path)), None)
+                chosen = recommended or (candidates[0][0] if len(candidates) == 1 else None)
+                if chosen is not None:
+                    self.set_intrinsics(chosen, self.selected, settings)
+                    self.set_status(f"已自动载入此相机的内参：{chosen}")
+                elif candidates:
+                    self.set_status(f"找到 {len(candidates)} 份内参；点击“查找已有内参”选择")
             check(self.camera.MV_CC_StartGrabbing(), "start grabbing")
             self.timer.start()
             self.setWindowTitle(f"{WINDOW_TITLE} - {self.selected['model']} / {serial}")
@@ -340,20 +426,35 @@ class CameraWindow(QMainWindow):
         self.pose_label.setText("位姿显示已关闭")
         self.pose_visualization = None
         self.pose_future = None
+        self.gain_label.setText("未连接")
         self.setWindowTitle(WINDOW_TITLE)
         self.update_controls()
+
+    def update_gain_display(self, value):
+        self.setting_gain_slider = True
+        self.gain_slider.setValue(round((value - self.gain_min) * 10))
+        self.gain_spin.setValue(value)
+        self.gain_label.setText(f"实际 {value:.2f}")
+        self.setting_gain_slider = False
 
     def set_gain(self, position):
         if self.setting_gain_slider or self.camera is None:
             return
         requested = min(self.gain_max, self.gain_min + position / 10.0)
+        self.write_gain(requested)
+
+    def set_gain_value(self, value):
+        if not self.setting_gain_slider and self.camera is not None:
+            self.write_gain(value)
+
+    def write_gain(self, requested):
         result = self.camera.MV_CC_SetFloatValue("Gain", requested)
         if result:
             self.set_status(f"设置增益失败：0x{result:08x}")
             return
         gain = self.sdk.MVCC_FLOATVALUE()
         if self.camera.MV_CC_GetFloatValue("Gain", gain) == 0:
-            self.gain_label.setText(f"{float(gain.fCurValue):.2f}")
+            self.update_gain_display(float(gain.fCurValue))
 
     def update_frame(self):
         if self.camera is None:
@@ -422,6 +523,14 @@ class CameraWindow(QMainWindow):
         image_path = None
         try:
             validate_capture_folder(self.output_dir, self.selected["model"], self.selected["serial"])
+            pair_id = self.pair_spin.value() if self.pair_toggle.isChecked() else None
+            if pair_id is not None:
+                for path in self.output_dir.glob("frame_*.json"):
+                    if json.loads(path.read_text(encoding="utf-8")).get("pair_id") == pair_id:
+                        raise RuntimeError(f"外参组号 {pair_id} 已在当前相机文件夹保存；请换组号或检查照片")
+                gray = cv2.cvtColor(self.current_frame, cv2.COLOR_BGR2GRAY)
+                if not cv2.findChessboardCornersSB(gray, (9, 6))[0]:
+                    raise RuntimeError("未检出完整 9×6 棋盘，本组未保存")
             image_path = next_frame_path(self.output_dir)
             if not cv2.imwrite(str(image_path), self.current_frame):
                 raise RuntimeError(f"无法保存图像：{image_path}")
@@ -437,10 +546,13 @@ class CameraWindow(QMainWindow):
                                 "max": int(gray.max())},
                 "conversion": "MVS RGB8 then OpenCV BGR8", "capture_unix_ns": time.time_ns(),
             }
+            if pair_id is not None:
+                metadata["pair_id"] = pair_id
             image_path.with_suffix(".json").write_text(
                 json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8")
-            self.set_status(f"已保存 {image_path.name} 和同名 JSON")
-        except (RuntimeError, OSError, ValueError, json.JSONDecodeError) as exc:
+            label = f"外参组 {pair_id}" if pair_id is not None else "普通采集"
+            self.set_status(f"已保存 {image_path.name} 和同名 JSON（{label}）")
+        except (RuntimeError, OSError, ValueError, json.JSONDecodeError, cv2.error) as exc:
             if image_path is not None and not image_path.with_suffix(".json").exists():
                 image_path.unlink(missing_ok=True)
             self.set_status(f"保存失败：{exc}")
@@ -515,8 +627,34 @@ class CameraWindow(QMainWindow):
         self.intrinsics_path = path
         self.pose_visualization = None
         self.pose_future = None
-        self.intrinsics_label.setText(f"内参：{path}")
+        self.intrinsics_label.setText(str(path))
+        self.intrinsics_label.setToolTip(
+            f"{path}\n相机 {intrinsics[0]['camera_serial']} | "
+            f"{intrinsics[0]['image_width']}×{intrinsics[0]['image_height']} | "
+            f"RMS {intrinsics[0].get('calibration_rms_px', float('nan')):.4f} px")
         self.update_controls()
+
+    def choose_found_intrinsics(self):
+        if self.selected is None or self.camera is None:
+            self.set_status("请先连接要使用内参的相机")
+            return
+        settings = camera_metadata(self.camera, self.sdk)
+        candidates = find_intrinsics_files(self.selected, settings, self.output_dir)
+        if not candidates:
+            self.set_status("未找到此相机的内参；可点击“浏览内参文件…”手动选择 intrinsics.json")
+            return
+        labels = [f"{item['camera_serial']} | {item['image_width']}×{item['image_height']} | "
+                  f"RMS {item.get('calibration_rms_px', float('nan')):.4f} px | {path}"
+                  for path, item in candidates]
+        choice, ok = QInputDialog.getItem(self, "选择已有内参", "请选择与当前镜头及对焦设置对应的结果：",
+                                          labels, 0, False)
+        if ok:
+            path = candidates[labels.index(choice)][0]
+            try:
+                self.set_intrinsics(path, self.selected, settings)
+                self.set_status(f"已载入内参：{path}")
+            except (RuntimeError, KeyError, ValueError, OSError) as exc:
+                self.set_status(f"内参不能使用：{exc}")
 
     def choose_intrinsics(self):
         start = str(self.intrinsics_path or self.output_dir or Path.home())
@@ -529,6 +667,15 @@ class CameraWindow(QMainWindow):
             except (RuntimeError, KeyError, ValueError, OSError) as exc:
                 self.set_status(f"内参不能使用：{exc}")
 
+    def open_stereo_dialog(self):
+        if self.stereo_dialog is None:
+            self.stereo_dialog = StereoCalibrationDialog(self)
+        if not self.stereo_dialog.folders[0].text() and self.selected is not None:
+            self.stereo_dialog.use_current(0)
+        self.stereo_dialog.show()
+        self.stereo_dialog.raise_()
+        self.stereo_dialog.activateWindow()
+
     def on_pose_toggled(self, enabled):
         if not enabled:
             self.pose_visualization = None
@@ -538,13 +685,20 @@ class CameraWindow(QMainWindow):
             self.pose_label.setText("正在检测完整 9×6 棋盘…")
 
     def closeEvent(self, event):
-        if self.calibration_process is not None and self.calibration_process.state() != QProcess.NotRunning:
-            answer = QMessageBox.question(self, "标定仍在进行", "退出将中断正在进行的内参计算，确定退出吗？")
+        running_intrinsics = self.calibration_process is not None and self.calibration_process.state() != QProcess.NotRunning
+        running_stereo = (self.stereo_dialog is not None and self.stereo_dialog.process is not None
+                          and self.stereo_dialog.process.state() != QProcess.NotRunning)
+        if running_intrinsics or running_stereo:
+            answer = QMessageBox.question(self, "标定仍在进行", "退出将中断正在进行的标定计算，确定退出吗？")
             if answer != QMessageBox.Yes:
                 event.ignore()
                 return
+        if running_intrinsics:
             self.calibration_process.terminate()
             self.calibration_process.waitForFinished(2000)
+        if running_stereo:
+            self.stereo_dialog.process.terminate()
+            self.stereo_dialog.process.waitForFinished(2000)
         self.disconnect_camera()
         self.pose_executor.shutdown(wait=False, cancel_futures=True)
         if self.sdk is not None:
