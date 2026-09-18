@@ -20,8 +20,9 @@ class StereoCalibrationDialog(QDialog):
         self.setWindowTitle("双相机棋盘格外参标定")
         self.resize(900, 500)
         layout = QVBoxLayout(self)
-        hint = QLabel("这里为每台相机选择整个照片文件夹，不是各选一张。建议每个文件夹拍 10～20 张；"
-                      "每组棋盘保持不动，勾选主界面的“外参配对采集”，两台相机使用同一组号。")
+        hint = QLabel("每台相机选择一个照片文件夹，按组号配对：同一组内先固定棋盘，再由两台相机各拍一张；"
+                      "拍完这一组才能移动棋盘并切换组号。组与组之间可以改变棋盘位姿。"
+                      "手持或运动中的棋盘需要双相机同步触发，手动填写相同组号不能保证配对有效。建议 10～20 组。")
         hint.setWordWrap(True)
         layout.addWidget(hint)
 
@@ -157,5 +158,9 @@ class StereoCalibrationDialog(QDialog):
                 f"外参：{path}\n有效 {data['used_pairs']} 组；RMS {data['stereo_rms_px']:.3f} px；"
                 f"基线 {data['baseline_mm']:.1f} mm；偏航角 {data['yaw_about_camera_y_deg']:.2f}°")
         else:
-            self.result_label.setText("外参计算失败；请查看下方日志")
+            review = self.output / "pair_review.json"
+            if review.is_file():
+                self.result_label.setText(f"配对一致性检查未通过；未生成可用外参。检查 {review}")
+            else:
+                self.result_label.setText("外参计算失败；请查看下方日志")
         self.run_button.setEnabled(True)

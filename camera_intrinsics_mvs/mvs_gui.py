@@ -222,7 +222,7 @@ class CameraWindow(QMainWindow):
         next_pair = QPushButton("下一组")
         next_pair.clicked.connect(lambda: self.pair_spin.setValue(self.pair_spin.value() + 1))
         pair_row.addWidget(next_pair)
-        pair_hint = QLabel("同一组号：棋盘不动，分别保存相机 1 和相机 2 的照片")
+        pair_hint = QLabel("每组固定棋盘，各相机拍 1 张；两张都拍完后再移动棋盘、点“下一组”")
         pair_row.addWidget(pair_hint, 1)
         self.stereo_button = QPushButton("双相机棋盘格外参…")
         self.stereo_button.clicked.connect(self.open_stereo_dialog)

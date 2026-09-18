@@ -170,6 +170,8 @@ def fit_stereo(records, K1, D1, K2, D2, square_mm, size1, size2):
             "pair_id": record["pair_id"],
             "camera1_image": record["camera1"][0].name,
             "camera2_image": record["camera2"][0].name,
+            "R_camera1_to_camera2": pair_rotation.tolist(),
+            "T_camera1_to_camera2_mm": pair_translation.reshape(3).tolist(),
             "camera1_reprojection_rms_px": reprojection_rms(grid, corners1, rvec1, tvec1, K1, D1),
             "camera2_reprojection_rms_px": reprojection_rms(grid, corners2, rvec2, tvec2, K2, D2),
             "relative_rotation_difference_deg": angle,
@@ -190,6 +192,56 @@ def fit_stereo(records, K1, D1, K2, D2, square_mm, size1, size2):
         "rotation_angle_deg": rotation_angle,
         "yaw_about_camera_y_deg": yaw,
         "E": E.tolist(), "F": F.tolist(), "per_pair": per_pair,
+    }
+
+
+def review_pair_consistency(result):
+    """Flag implausible pairings; image geometry cannot prove a board stayed still."""
+    rotation_limit_deg = 3.0
+    translation_limit_mm = max(50.0, 0.1 * result["baseline_mm"])
+    pairs = result["per_pair"]
+    rotations = [np.asarray(pair["R_camera1_to_camera2"]) for pair in pairs]
+    translations = [np.asarray(pair["T_camera1_to_camera2_mm"]) for pair in pairs]
+
+    def distance(i, j):
+        delta = rotations[i] @ rotations[j].T
+        angle = float(np.degrees(np.arccos(np.clip((np.trace(delta) - 1) / 2, -1, 1))))
+        shift = float(np.linalg.norm(translations[i] - translations[j]))
+        return angle, shift
+
+    # Use a pair medoid, rather than the global fit, so one bad group does not
+    # make all the good groups look like outliers.
+    medoid = min(range(len(pairs)), key=lambda i: sum(
+        min((distance(i, j)[0] / rotation_limit_deg) ** 2 +
+            (distance(i, j)[1] / translation_limit_mm) ** 2, 100)
+        for j in range(len(pairs))))
+    suspect = []
+    for index, pair in enumerate(pairs):
+        angle, shift = distance(index, medoid)
+        pair["consensus_rotation_difference_deg"] = angle
+        pair["consensus_translation_difference_mm"] = shift
+        reasons = []
+        if angle > rotation_limit_deg:
+            reasons.append(f"相对旋转偏差 {angle:.2f}°")
+        if shift > translation_limit_mm:
+            reasons.append(f"相对平移偏差 {shift:.1f} mm")
+        if reasons:
+            suspect.append({"pair_id": pair["pair_id"], "reasons": reasons})
+    reasons = []
+    if result["stereo_rms_px"] > 1.0:
+        reasons.append(f"双目重投影 RMS {result['stereo_rms_px']:.3f} px 超过 1 px")
+    if suspect:
+        ids = ", ".join(str(item["pair_id"]) for item in suspect)
+        reasons.append(f"配对组 {ids} 的相对位姿与整体结果不一致")
+    return {
+        "accepted": not reasons,
+        "reasons": reasons,
+        "suspect_pairs": suspect,
+        "consensus_reference_pair_id": pairs[medoid]["pair_id"],
+        "rotation_limit_deg": rotation_limit_deg,
+        "translation_limit_mm": translation_limit_mm,
+        "stereo_rms_limit_px": 1.0,
+        "note": "通过几何一致性检查不能证明拍摄时棋盘未移动；每组仍须保证两相机看到同一棋盘位姿。",
     }
 
 
@@ -245,21 +297,30 @@ def main():
                          "images": str(folder2), "intrinsics": str(args.intrinsics2.expanduser().resolve())}
     result["skipped_pairs"] = skipped
     result["expected_angle_deg"] = args.expected_angle_deg
+    review = review_pair_consistency(result)
+    result["pair_review"] = review
     warnings = []
     if len(records) < 10:
         warnings.append("有效配对少于 10 组；建议增加不同棋盘姿态")
-    if result["stereo_rms_px"] > 1.0:
-        warnings.append("双目重投影误差大于 1 px；检查图像同步、棋盘是否移动及角点质量")
     if abs(abs(result["yaw_about_camera_y_deg"]) - args.expected_angle_deg) > 5:
         warnings.append("估计的水平偏航角与预期夹角相差超过 5°；检查安装方向及拍摄配对")
-    if max(item["relative_rotation_difference_deg"] for item in result["per_pair"]) > 3:
-        warnings.append("部分配对的单张位姿与整体结果相差超过 3°；请检查配对和角点可视化")
     result["warnings"] = warnings
     output = args.output.expanduser().resolve()
     if output.exists():
         raise RuntimeError(f"结果目录已存在：{output}")
     output.mkdir(parents=True)
     save_annotated(records, output)
+    if not review["accepted"]:
+        (output / "pair_review.json").write_text(
+            json.dumps({"pair_review": review, "stereo_rms_px": result["stereo_rms_px"],
+                        "per_pair": result["per_pair"], "skipped_pairs": skipped},
+                       indent=2, ensure_ascii=False), encoding="utf-8")
+        print("外参未通过配对一致性检查，不生成 extrinsics.json。", flush=True)
+        for reason in review["reasons"]:
+            print(f"CHECK: {reason}", flush=True)
+        print(f"请检查 {output / 'pair_review.json'} 和 detected_corners/，确认每组棋盘不动后重拍有问题的组。",
+              flush=True)
+        return 2
     (output / "extrinsics.json").write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"双目 RMS {result['stereo_rms_px']:.4f} px；基线 {result['baseline_mm']:.1f} mm；"
           f"偏航角 {result['yaw_about_camera_y_deg']:.2f}°", flush=True)
