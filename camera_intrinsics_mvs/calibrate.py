@@ -145,7 +145,7 @@ def main():
             manifest = {"camera_model": metadata[0].get("camera_model"),
                         "camera_serial": metadata[0].get("camera_serial"),
                         "settings": metadata[0].get("settings")}
-            image_source = "live_preview"
+            image_source = metadata[0].get("capture_app", "live_preview")
     serial = manifest.get("camera_serial", "unknown")
     centers = np.array([record["board_center_px"] for record in records])
     all_corners = np.concatenate([record["corners"].reshape(-1, 2) for record in records])
@@ -164,7 +164,7 @@ def main():
     for center_x, center_y in centers:
         cell_counts[min(2, int(3 * center_y / size[1])), min(2, int(3 * center_x / size[0]))] += 1
     warnings = []
-    if image_source == "live_preview":
+    if image_source in ("live_preview", "mvs_gui"):
         if any(item.get("settings") != metadata[0].get("settings") for item in metadata):
             warnings.append("Camera settings varied across preview images")
         if any(item.get("frame", {}).get("lost_packets", 0) for item in metadata):

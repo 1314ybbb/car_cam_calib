@@ -10,6 +10,10 @@ case "${1:-}" in
     shift
     exec /usr/bin/python3 "$script_dir/live_preview.py" "$@"
     ;;
+  gui)
+    shift
+    exec /usr/bin/python3 "$script_dir/mvs_gui.py" "$@"
+    ;;
   mvs)
     shift
     mvs_root="${MVS_ROOT:-/home/ybbb/.local/opt/MVS-5.0.1}"
@@ -31,7 +35,7 @@ case "${1:-}" in
     exec /usr/bin/python3 "$script_dir/measure_board_distance.py" "$@"
     ;;
   *)
-    echo "Usage: $0 {probe|snapshot|preview|capture|calibrate|distance|mvs} [options]" >&2
+    echo "Usage: $0 {probe|snapshot|preview|gui|capture|calibrate|distance|mvs} [options]" >&2
     exit 2
     ;;
 esac

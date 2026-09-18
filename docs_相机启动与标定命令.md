@@ -1,6 +1,17 @@
 # 相机启动与标定命令
 
-更新：2026-09-17。本机为 Ubuntu x86_64，MVS 5.0.1 已解压到 `/home/ybbb/.local/opt/MVS-5.0.1`，本项目脚本在 `/home/ybbb/codex_prj/camera_intrinsics_mvs`。
+更新：2026-09-18。本机为 Ubuntu x86_64，MVS 5.0.1 已解压到 `/home/ybbb/.local/opt/MVS-5.0.1`，GitHub 工程脚本在 `/home/ybbb/codex_prj/car_cam_calib/camera_intrinsics_mvs`。
+
+## 图形上位机：多相机分别取帧、求参、位姿
+
+先退出旧预览或海康 MVS 中占用相机的连接，再运行：
+
+```bash
+cd /home/ybbb/codex_prj/car_cam_calib/camera_intrinsics_mvs
+./run.sh gui --serial DB2189859
+```
+
+在窗口选择相机并连接。每台相机分别选择一个图片文件夹，按空格或点击“保存图片 + JSON”取帧；同名 JSON 保存相机身份和采集参数。填入**实际测量**的单格毫米数，拍摄至少 15 张有效棋盘照片（建议 25～35 张），点击“一键生成内参”。结果保存在该图片目录下的 `calibration_时间戳/intrinsics.json`，完成后自动选择。也可点击“选择内参 JSON”载入旧结果，打开“实时位姿”开关查看棋盘坐标轴、X/Y/Z、光心距离和重投影误差。必须使用当前相机、当前分辨率对应的内参。
 
 ## 当前连接情况
 
