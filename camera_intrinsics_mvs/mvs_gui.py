@@ -24,6 +24,7 @@ from stereo_gui import StereoCalibrationDialog
 
 
 WINDOW_TITLE = "Hikrobot 相机标定上位机"
+STEREO_PAIRS_SUBDIR = "stereo_pairs"
 
 
 def next_frame_path(folder):
@@ -55,11 +56,15 @@ def calibration_images(folder, selected=None):
                     {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"})
     identities = set()
     dimensions = set()
+    intrinsic_images = []
     for image in images:
         metadata_path = image.with_suffix(".json")
         if not metadata_path.is_file():
             raise RuntimeError(f"{image.name} 缺少同名 JSON")
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        if metadata.get("pair_id") is not None:
+            continue
+        intrinsic_images.append(image)
         model, serial = metadata.get("camera_model"), metadata.get("camera_serial")
         if not model or not serial:
             raise RuntimeError(f"{metadata_path.name} 缺少相机型号或序列号")
@@ -73,7 +78,7 @@ def calibration_images(folder, selected=None):
         raise RuntimeError("图片不属于当前连接的相机；请选择对应相机或断开后离线标定")
     if len(dimensions) > 1:
         raise RuntimeError("文件夹混有不同分辨率的图像；请分开标定")
-    return images
+    return intrinsic_images
 
 
 def read_intrinsics(path, model=None, serial=None, size=None):
@@ -222,7 +227,7 @@ class CameraWindow(QMainWindow):
         next_pair = QPushButton("下一组")
         next_pair.clicked.connect(lambda: self.pair_spin.setValue(self.pair_spin.value() + 1))
         pair_row.addWidget(next_pair)
-        pair_hint = QLabel("每组固定棋盘，各相机拍 1 张；两张都拍完后再移动棋盘、点“下一组”")
+        pair_hint = QLabel("每组固定棋盘，各拍 1 张；照片存入 stereo_pairs/；两张拍完再点“下一组”")
         pair_row.addWidget(pair_hint, 1)
         self.stereo_button = QPushButton("双相机棋盘格外参…")
         self.stereo_button.clicked.connect(self.open_stereo_dialog)
@@ -549,16 +554,19 @@ class CameraWindow(QMainWindow):
             return
         image_path = None
         try:
-            validate_capture_folder(self.output_dir, self.selected["model"], self.selected["serial"])
             pair_id = self.pair_spin.value() if self.pair_toggle.isChecked() else None
+            capture_dir = self.output_dir / STEREO_PAIRS_SUBDIR if pair_id is not None else self.output_dir
             if pair_id is not None:
-                for path in self.output_dir.glob("frame_*.json"):
+                capture_dir.mkdir(exist_ok=True)
+            validate_capture_folder(capture_dir, self.selected["model"], self.selected["serial"])
+            if pair_id is not None:
+                for path in capture_dir.glob("frame_*.json"):
                     if json.loads(path.read_text(encoding="utf-8")).get("pair_id") == pair_id:
                         raise RuntimeError(f"外参组号 {pair_id} 已在当前相机文件夹保存；请换组号或检查照片")
                 gray = cv2.cvtColor(self.current_frame, cv2.COLOR_BGR2GRAY)
                 if not cv2.findChessboardCornersSB(gray, (9, 6))[0]:
                     raise RuntimeError("未检出完整 9×6 棋盘，本组未保存")
-            image_path = next_frame_path(self.output_dir)
+            image_path = next_frame_path(capture_dir)
             if not cv2.imwrite(str(image_path), self.current_frame):
                 raise RuntimeError(f"无法保存图像：{image_path}")
             gray = cv2.cvtColor(self.current_frame, cv2.COLOR_BGR2GRAY)
@@ -578,7 +586,7 @@ class CameraWindow(QMainWindow):
             image_path.with_suffix(".json").write_text(
                 json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8")
             label = f"外参组 {pair_id}" if pair_id is not None else "普通采集"
-            self.set_status(f"已保存 {image_path.name} 和同名 JSON（{label}）")
+            self.set_status(f"已保存 {image_path} 和同名 JSON（{label}）")
         except (RuntimeError, OSError, ValueError, json.JSONDecodeError, cv2.error) as exc:
             if image_path is not None and not image_path.with_suffix(".json").exists():
                 image_path.unlink(missing_ok=True)

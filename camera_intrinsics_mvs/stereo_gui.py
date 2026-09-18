@@ -98,7 +98,8 @@ class StereoCalibrationDialog(QDialog):
         if window.selected is None or window.output_dir is None:
             self.log.appendPlainText("请先在主界面连接相机并选择该相机的图片文件夹")
             return
-        self.folders[index].setText(str(window.output_dir))
+        pair_folder = window.output_dir / "stereo_pairs"
+        self.folders[index].setText(str(pair_folder if pair_folder.is_dir() else window.output_dir))
         if window.intrinsics_path and window.intrinsics is not None:
             self.intrinsics[index].setText(str(window.intrinsics_path))
         else:

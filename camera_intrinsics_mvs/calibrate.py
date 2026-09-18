@@ -17,7 +17,17 @@ EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"}
 def images_in(folder):
     if not folder.is_dir():
         raise RuntimeError(f"Image directory does not exist: {folder}")
-    return sorted(p for p in folder.iterdir() if p.suffix.lower() in EXTENSIONS)
+    images = []
+    for path in folder.iterdir():
+        if path.suffix.lower() not in EXTENSIONS:
+            continue
+        metadata_path = path.with_suffix(".json")
+        if metadata_path.is_file():
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            if metadata.get("pair_id") is not None:
+                continue
+        images.append(path)
+    return sorted(images)
 
 
 def detect(folder, expected_size=None, annotated=None):
