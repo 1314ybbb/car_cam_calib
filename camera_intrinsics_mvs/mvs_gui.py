@@ -25,7 +25,7 @@ from stereo_gui import StereoCalibrationDialog
 
 
 WINDOW_TITLE = "Hikrobot 相机标定上位机"
-STEREO_PAIRS_SUBDIR = "stereo_pairs"
+CAMERA_POSITIONS = {"DB2189859": "cam1", "DB2189878": "cam2"}
 DUAL_PREVIEW_FPS = 6.0
 DUAL_PACKET_DELAY_US = 50.0
 
@@ -61,6 +61,27 @@ def restore_packet_pacing(camera, original_ticks):
 
 def unique_camera_serials(cameras):
     return sorted({entry["serial"] for entry in cameras})
+
+
+def camera_position(serial):
+    position = CAMERA_POSITIONS.get(serial)
+    if position is None:
+        raise RuntimeError(f"相机 {serial} 尚未绑定 cam1/cam2 物理位置")
+    return position
+
+
+def capture_root(folder):
+    """A selected camera folder and its parent share the same capture root."""
+    if folder.name.startswith(tuple(f"cam{i}_parm_{kind}_" for i in (1, 2)
+                                    for kind in ("inside", "outside"))):
+        return folder.parent
+    return folder
+
+
+def capture_directory(folder, serial, kind):
+    if kind not in ("inside", "outside"):
+        raise ValueError(f"未知标定类型：{kind}")
+    return capture_root(folder) / f"{camera_position(serial)}_parm_{kind}_{serial}"
 
 
 def new_frame_stats():
@@ -159,12 +180,17 @@ def find_intrinsics_files(selected, settings=None, output_dir=None):
     roots = [Path(__file__).resolve().parent.parent / "results" / serial,
              Path.home() / "codex_prj/car_cam_calib/results" / serial,
              Path.home() / "桌面/相机内参标定" / serial]
+    if serial in CAMERA_POSITIONS:
+        roots.append(capture_directory(Path.home() / "桌面", serial, "inside"))
     paths = set()
     for root in roots:
         if root.is_dir():
             paths.update(path.resolve() for path in root.rglob("intrinsics.json"))
     if output_dir is not None:
         paths.update(path.resolve() for path in output_dir.glob("calibration_*/intrinsics.json"))
+        if serial in CAMERA_POSITIONS:
+            inside_dir = capture_directory(output_dir, serial, "inside")
+            paths.update(path.resolve() for path in inside_dir.glob("calibration_*/intrinsics.json"))
     candidates = []
     size = (int(settings["Width"]), int(settings["Height"])) if settings else None
     for path in paths:
@@ -467,7 +493,7 @@ class CameraWindow(QMainWindow):
             self.selected = select_camera(self.cameras, serial)
             if self.output_dir is not None:
                 try:
-                    validate_capture_folder(self.output_dir, self.selected["model"], serial)
+                    capture_directory(self.output_dir, serial, "inside")
                 except (RuntimeError, ValueError) as exc:
                     self.output_dir = None
                     self.folder_label.setText("图片目录：请为当前相机重新选择")
@@ -514,6 +540,7 @@ class CameraWindow(QMainWindow):
             self.set_status(f"已连接 {self.selected['model']} / {serial}")
             if self.pair_toggle.isChecked():
                 self.enable_dual_preview()
+            self.update_directory_label()
         except (RuntimeError, cv2.error, OSError) as exc:
             self.disconnect_camera()
             self.set_status(f"连接失败：{exc}")
@@ -551,6 +578,7 @@ class CameraWindow(QMainWindow):
         self.last_gain_requested = None
         self.gain_label.setText("未连接")
         self.setWindowTitle(WINDOW_TITLE)
+        self.update_directory_label()
         self.update_controls()
 
     def on_pair_toggled(self, enabled):
@@ -559,6 +587,7 @@ class CameraWindow(QMainWindow):
                 self.enable_dual_preview()
             else:
                 self.disable_dual_preview()
+        self.update_directory_label()
         self.update_controls()
 
     def set_dual_layout(self, enabled):
@@ -566,9 +595,11 @@ class CameraWindow(QMainWindow):
             self.video_label.setMinimumSize(0, 240)
         else:
             self.video_label.setMinimumSize(960, 540)
-        self.primary_video_title.setText(f"相机 1：{self.selected['serial']}" if self.selected else "")
+        self.primary_video_title.setText(
+            f"{camera_position(self.selected['serial'])}：{self.selected['serial']}" if self.selected else "")
         self.secondary_video_title.setText(
-            f"相机 2：{self.secondary_selected['serial']}" if self.secondary_selected else "")
+            f"{camera_position(self.secondary_selected['serial'])}：{self.secondary_selected['serial']}"
+            if self.secondary_selected else "")
         self.primary_video_title.setVisible(enabled)
         self.secondary_video_panel.setVisible(enabled)
         for widget in (self.secondary_gain_label, self.secondary_gain_spin, self.secondary_gain_actual):
@@ -861,8 +892,46 @@ class CameraWindow(QMainWindow):
         folder = Path(path).expanduser().resolve()
         folder.mkdir(parents=True, exist_ok=True)
         self.output_dir = folder
-        self.folder_label.setText(f"图片目录：{folder}")
+        self.update_directory_label()
         self.update_controls()
+
+    def update_directory_label(self):
+        if self.output_dir is None:
+            self.folder_label.setText("图片目录：未选择")
+            return
+        if self.selected is None:
+            self.folder_label.setText(f"图片目录根路径：{capture_root(self.output_dir)}")
+            return
+        kind = "outside" if self.pair_toggle.isChecked() else "inside"
+        try:
+            folder = capture_directory(self.output_dir, self.selected["serial"], kind)
+            self.folder_label.setText(f"图片保存目录：{folder}")
+        except RuntimeError as exc:
+            self.folder_label.setText(str(exc))
+
+    def intrinsic_directory(self):
+        if self.output_dir is None or self.selected is None:
+            return None
+        return capture_directory(self.output_dir, self.selected["serial"], "inside")
+
+    def pair_directory(self, selected):
+        if self.output_dir is None or selected is None:
+            return None
+        return capture_directory(self.output_dir, selected["serial"], "outside")
+
+    def camera_position(self, serial):
+        return camera_position(serial)
+
+    def matching_intrinsics_path(self, selected):
+        if (self.selected is not None and selected["serial"] == self.selected["serial"]
+                and self.intrinsics is not None and self.intrinsics_path):
+            return self.intrinsics_path
+        camera = (self.secondary_camera if self.secondary_selected is not None
+                  and selected["serial"] == self.secondary_selected["serial"] else None)
+        settings = camera_metadata(camera, self.sdk) if camera is not None else None
+        candidates = find_intrinsics_files(selected, settings, self.output_dir)
+        recommended = next((path for path, _ in candidates if "calibration_recommended" in str(path)), None)
+        return recommended or (candidates[0][0] if candidates else None)
 
     def choose_folder(self):
         start = str(self.output_dir or Path.home())
@@ -875,9 +944,7 @@ class CameraWindow(QMainWindow):
                 self.set_status(f"文件夹不可用：{exc}")
 
     def secondary_pair_directory(self):
-        if self.output_dir is None or self.secondary_selected is None:
-            return None
-        return self.output_dir / f"{STEREO_PAIRS_SUBDIR}_{self.secondary_selected['serial']}"
+        return self.pair_directory(self.secondary_selected)
 
     def save_frame(self):
         if self.output_dir is None or self.camera is None or self.current_frame is None:
@@ -889,7 +956,7 @@ class CameraWindow(QMainWindow):
             dual_expected = pair_id is not None and len(unique_camera_serials(self.cameras)) >= 2
             if dual_expected and self.secondary_camera is None:
                 raise RuntimeError("已发现两台相机，但第二台未连接；本组不保存不完整配对")
-            primary_dir = self.output_dir / STEREO_PAIRS_SUBDIR if pair_id is not None else self.output_dir
+            primary_dir = self.pair_directory(self.selected) if pair_id is not None else self.intrinsic_directory()
             captures = [(self.camera, self.selected, self.current_frame, self.current_frame_info,
                          self.current_frame_host_ns, primary_dir)]
             if pair_id is not None and self.secondary_camera is not None:
@@ -956,7 +1023,8 @@ class CameraWindow(QMainWindow):
         if self.calibration_process is not None and self.calibration_process.state() != QProcess.NotRunning:
             return
         try:
-            images = calibration_images(self.output_dir, self.selected)
+            images_dir = self.intrinsic_directory() if self.selected else self.output_dir
+            images = calibration_images(images_dir, self.selected)
         except (RuntimeError, OSError, ValueError, json.JSONDecodeError) as exc:
             self.set_status(f"标定输入不可用：{exc}")
             return
@@ -964,14 +1032,14 @@ class CameraWindow(QMainWindow):
             self.set_status(f"当前目录只有 {len(images)} 张图像；至少需要 15 张有效棋盘照片")
             return
         stamp = time.strftime("%Y%m%d_%H%M%S")
-        self.calibration_output = self.output_dir / f"calibration_{stamp}"
+        self.calibration_output = images_dir / f"calibration_{stamp}"
         self.calibration_process = QProcess(self)
         self.calibration_process.setProcessChannelMode(QProcess.MergedChannels)
         self.calibration_process.readyReadStandardOutput.connect(self.read_calibration_output)
         self.calibration_process.finished.connect(self.calibration_finished)
         self.calibration_process.errorOccurred.connect(self.calibration_error)
         arguments = [str(Path(__file__).with_name("calibrate.py")),
-                     "--images", str(self.output_dir), "--output", str(self.calibration_output),
+                     "--images", str(images_dir), "--output", str(self.calibration_output),
                      "--square-mm", str(self.square_spin.value()), "--fix-k3"]
         self.calibration_process.start(sys.executable, arguments)
         self.set_status(f"正在计算内参，输入 {len(images)} 张图像；结果目录 {self.calibration_output}")
@@ -1062,10 +1130,10 @@ class CameraWindow(QMainWindow):
     def open_stereo_dialog(self):
         if self.stereo_dialog is None:
             self.stereo_dialog = StereoCalibrationDialog(self)
-        if not self.stereo_dialog.folders[0].text() and self.selected is not None:
-            self.stereo_dialog.use_current(0)
-        if not self.stereo_dialog.folders[1].text() and self.secondary_camera is not None:
-            self.stereo_dialog.use_current(1)
+        if self.selected is not None:
+            for index in range(2):
+                if not self.stereo_dialog.folders[index].text():
+                    self.stereo_dialog.use_current(index)
         self.stereo_dialog.show()
         self.stereo_dialog.raise_()
         self.stereo_dialog.activateWindow()

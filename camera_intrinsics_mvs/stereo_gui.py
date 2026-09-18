@@ -98,16 +98,18 @@ class StereoCalibrationDialog(QDialog):
         if window.selected is None or window.output_dir is None:
             self.log.appendPlainText("请先在主界面连接相机并选择该相机的图片文件夹")
             return
-        if index == 1 and window.secondary_camera is not None:
-            self.folders[index].setText(str(window.secondary_pair_directory()))
-            self.log.appendPlainText("相机 2 图片目录已填入；请为它选择对应的 intrinsics.json")
+        target = f"cam{index + 1}"
+        selected = next((item for item in (window.selected, window.secondary_selected)
+                         if item is not None and window.camera_position(item["serial"]) == target), None)
+        if selected is None:
+            self.log.appendPlainText(f"{target} 尚未连接；请手动选择它的照片目录和内参")
             return
-        pair_folder = window.output_dir / "stereo_pairs"
-        self.folders[index].setText(str(pair_folder if pair_folder.is_dir() else window.output_dir))
-        if window.intrinsics_path and window.intrinsics is not None:
-            self.intrinsics[index].setText(str(window.intrinsics_path))
+        self.folders[index].setText(str(window.pair_directory(selected)))
+        intrinsic_path = window.matching_intrinsics_path(selected)
+        if intrinsic_path is not None:
+            self.intrinsics[index].setText(str(intrinsic_path))
         else:
-            self.log.appendPlainText("当前相机尚未选择内参；请点击主界面的“查找已有内参”")
+            self.log.appendPlainText(f"{target} 尚未找到匹配内参；请点击“选择 intrinsics.json”")
 
     def start(self):
         if self.process is not None and self.process.state() != QProcess.NotRunning:
