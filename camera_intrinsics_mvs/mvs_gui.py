@@ -3,6 +3,7 @@
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
+from ctypes import c_bool
 import json
 from pathlib import Path
 import sys
@@ -14,7 +15,7 @@ from PyQt5.QtCore import QProcess, Qt, QTimer
 from PyQt5.QtGui import QImage, QKeySequence, QPixmap
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBox,
                              QFileDialog, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMainWindow,
-                             QMessageBox, QPlainTextEdit, QPushButton, QSlider,
+                             QMessageBox, QPlainTextEdit, QPushButton, QSizePolicy, QSlider,
                              QShortcut, QSpinBox, QVBoxLayout, QWidget)
 
 from calibrate import object_grid
@@ -25,6 +26,46 @@ from stereo_gui import StereoCalibrationDialog
 
 WINDOW_TITLE = "Hikrobot 相机标定上位机"
 STEREO_PAIRS_SUBDIR = "stereo_pairs"
+DUAL_PREVIEW_FPS = 6.0
+DUAL_PACKET_DELAY_US = 50.0
+
+
+def frame_rate_state(camera, sdk):
+    enabled = c_bool()
+    check(camera.MV_CC_GetBoolValue("AcquisitionFrameRateEnable", enabled), "read frame rate mode")
+    value = sdk.MVCC_FLOATVALUE()
+    check(camera.MV_CC_GetFloatValue("AcquisitionFrameRate", value), "read frame rate")
+    return bool(enabled.value), float(value.fCurValue)
+
+
+def set_frame_rate_state(camera, enabled, fps):
+    check(camera.MV_CC_SetBoolValue("AcquisitionFrameRateEnable", True), "enable frame rate control")
+    check(camera.MV_CC_SetFloatValue("AcquisitionFrameRate", float(fps)), "set frame rate")
+    check(camera.MV_CC_SetBoolValue("AcquisitionFrameRateEnable", bool(enabled)), "restore frame rate mode")
+
+
+def configure_packet_pacing(camera, sdk):
+    delay = sdk.MVCC_INTVALUE_EX()
+    check(camera.MV_CC_GetIntValueEx("GevSCPD", delay), "read packet delay")
+    frequency = sdk.MVCC_INTVALUE_EX()
+    check(camera.MV_CC_GetIntValueEx("GevTimestampTickFrequency", frequency), "read camera clock rate")
+    target = round(float(frequency.nCurValue) * DUAL_PACKET_DELAY_US / 1_000_000)
+    target = max(int(delay.nMin), min(int(delay.nMax), target))
+    check(camera.MV_CC_SetIntValueEx("GevSCPD", target), "pace GigE packets")
+    return int(delay.nCurValue), target
+
+
+def restore_packet_pacing(camera, original_ticks):
+    check(camera.MV_CC_SetIntValueEx("GevSCPD", int(original_ticks)), "restore GigE packet delay")
+
+
+def unique_camera_serials(cameras):
+    return sorted({entry["serial"] for entry in cameras})
+
+
+def new_frame_stats():
+    return {name: {"frames": 0, "incomplete": 0, "lost_packets": 0, "read_errors": 0}
+            for name in ("camera1", "camera2")}
 
 
 def next_frame_path(folder):
@@ -163,11 +204,23 @@ class CameraWindow(QMainWindow):
         self.args = args
         self.sdk = None
         self.camera = None
+        self.secondary_camera = None
         self.cameras = []
         self.selected = None
+        self.secondary_selected = None
         self.trigger_original = None
+        self.secondary_trigger_original = None
+        self.primary_rate_before_dual = None
+        self.secondary_rate_before_dual = None
+        self.primary_packet_delay_before_dual = None
+        self.secondary_packet_delay_before_dual = None
         self.current_frame = None
         self.current_frame_info = None
+        self.current_frame_host_ns = None
+        self.secondary_frame = None
+        self.secondary_frame_info = None
+        self.secondary_frame_host_ns = None
+        self.frame_stats = new_frame_stats()
         self.output_dir = None
         self.intrinsics_path = None
         self.intrinsics = None
@@ -218,6 +271,7 @@ class CameraWindow(QMainWindow):
         pair_row = QHBoxLayout()
         self.pair_toggle = QCheckBox("外参配对采集")
         pair_row.addWidget(self.pair_toggle)
+        self.pair_toggle.toggled.connect(self.on_pair_toggled)
         pair_row.addWidget(QLabel("组号"))
         self.pair_spin = QSpinBox()
         self.pair_spin.setRange(1, 999999)
@@ -227,7 +281,7 @@ class CameraWindow(QMainWindow):
         next_pair = QPushButton("下一组")
         next_pair.clicked.connect(lambda: self.pair_spin.setValue(self.pair_spin.value() + 1))
         pair_row.addWidget(next_pair)
-        pair_hint = QLabel("每组固定棋盘，各拍 1 张；照片存入 stereo_pairs/；两张拍完再点“下一组”")
+        pair_hint = QLabel("两台相机时左右预览、空格保存一组；固定棋盘后拍摄，再点“下一组”")
         pair_row.addWidget(pair_hint, 1)
         self.stereo_button = QPushButton("双相机棋盘格外参…")
         self.stereo_button.clicked.connect(self.open_stereo_dialog)
@@ -282,13 +336,47 @@ class CameraWindow(QMainWindow):
         self.gain_label = QLabel("未连接")
         self.gain_label.setToolTip("相机 SDK 读取的实际增益；设备可能只支持离散档位")
         gain_row.addWidget(self.gain_label)
+        self.secondary_gain_label = QLabel("相机 2 增益")
+        self.secondary_gain_spin = QDoubleSpinBox()
+        self.secondary_gain_spin.setDecimals(2)
+        self.secondary_gain_spin.setSingleStep(0.1)
+        self.secondary_gain_spin.setKeyboardTracking(False)
+        self.secondary_gain_spin.valueChanged.connect(self.set_secondary_gain)
+        self.secondary_gain_actual = QLabel("")
+        for widget in (self.secondary_gain_label, self.secondary_gain_spin, self.secondary_gain_actual):
+            gain_row.addWidget(widget)
+            widget.hide()
         layout.addLayout(gain_row)
 
+        video_row = QHBoxLayout()
+        primary_video = QVBoxLayout()
+        self.primary_video_title = QLabel("")
+        self.primary_video_title.setAlignment(Qt.AlignCenter)
+        self.primary_video_title.hide()
+        primary_video.addWidget(self.primary_video_title)
         self.video_label = QLabel("等待相机画面")
         self.video_label.setAlignment(Qt.AlignCenter)
         self.video_label.setMinimumSize(960, 540)
+        self.video_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         self.video_label.setStyleSheet("background: #17191c; color: #ddd")
-        layout.addWidget(self.video_label, 1)
+        primary_video.addWidget(self.video_label, 1)
+        video_row.addLayout(primary_video, 1)
+        secondary_video = QVBoxLayout()
+        self.secondary_video_title = QLabel("")
+        self.secondary_video_title.setAlignment(Qt.AlignCenter)
+        secondary_video.addWidget(self.secondary_video_title)
+        self.secondary_video_label = QLabel("等待第二台相机画面")
+        self.secondary_video_label.setAlignment(Qt.AlignCenter)
+        self.secondary_video_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
+        self.secondary_video_label.setStyleSheet("background: #17191c; color: #ddd")
+        secondary_video.addWidget(self.secondary_video_label, 1)
+        self.secondary_video_panel = QWidget()
+        self.secondary_video_panel.setLayout(secondary_video)
+        self.secondary_video_panel.hide()
+        video_row.addWidget(self.secondary_video_panel, 1)
+        layout.addLayout(video_row, 1)
+        self.stream_quality_label = QLabel("取帧质量：尚未取帧")
+        layout.addWidget(self.stream_quality_label)
         self.pose_label = QLabel("位姿显示已关闭")
         layout.addWidget(self.pose_label)
         self.status_label = QLabel("就绪")
@@ -325,9 +413,11 @@ class CameraWindow(QMainWindow):
         connected = self.camera is not None
         self.connect_button.setText("断开相机" if connected else "连接相机")
         self.connect_button.setEnabled(connected or self.camera_combo.count() > 0)
-        self.refresh_button.setEnabled(not connected and self.sdk is not None)
+        self.refresh_button.setEnabled(self.sdk is not None)
         self.camera_combo.setEnabled(not connected)
-        self.save_button.setEnabled(connected and self.output_dir is not None)
+        dual_expected = self.pair_toggle.isChecked() and len(unique_camera_serials(self.cameras)) >= 2
+        self.save_button.setEnabled(connected and self.output_dir is not None and
+                                    (not dual_expected or self.secondary_camera is not None))
         self.gain_slider.setEnabled(connected)
         self.gain_spin.setEnabled(connected)
         self.apply_gain_button.setEnabled(connected)
@@ -339,9 +429,10 @@ class CameraWindow(QMainWindow):
         self.calibrate_button.setEnabled(self.output_dir is not None and not busy)
 
     def refresh_cameras(self):
-        if self.sdk is None or self.camera is not None:
+        if self.sdk is None:
             return
         try:
+            current_serial = self.selected["serial"] if self.selected else self.camera_combo.currentData()
             self.cameras = enumerate_cameras(self.sdk)
             self.camera_combo.clear()
             seen = set()
@@ -350,7 +441,13 @@ class CameraWindow(QMainWindow):
                     continue
                 seen.add(entry["serial"])
                 self.camera_combo.addItem(f"{entry['model']}  {entry['serial']}  {entry['ip']}", entry["serial"])
+            if current_serial:
+                index = self.camera_combo.findData(current_serial)
+                if index >= 0:
+                    self.camera_combo.setCurrentIndex(index)
             self.set_status(f"发现 {len(seen)} 台相机")
+            if self.camera is not None and self.pair_toggle.isChecked() and self.secondary_camera is None:
+                self.enable_dual_preview()
         except (RuntimeError, OSError) as exc:
             self.set_status(f"枚举相机失败：{exc}")
         self.update_controls()
@@ -415,6 +512,8 @@ class CameraWindow(QMainWindow):
             self.timer.start()
             self.setWindowTitle(f"{WINDOW_TITLE} - {self.selected['model']} / {serial}")
             self.set_status(f"已连接 {self.selected['model']} / {serial}")
+            if self.pair_toggle.isChecked():
+                self.enable_dual_preview()
         except (RuntimeError, cv2.error, OSError) as exc:
             self.disconnect_camera()
             self.set_status(f"连接失败：{exc}")
@@ -422,20 +521,29 @@ class CameraWindow(QMainWindow):
 
     def disconnect_camera(self):
         self.timer.stop()
+        self.disable_dual_preview(restart_primary=False)
         if self.camera is not None:
-            try:
-                self.camera.MV_CC_StopGrabbing()
-                if self.trigger_original is not None:
-                    self.camera.MV_CC_SetEnumValue("TriggerMode", self.trigger_original)
-                self.camera.MV_CC_CloseDevice()
-                self.camera.MV_CC_DestroyHandle()
-            except Exception as exc:
-                self.set_status(f"关闭相机时出错：{exc}")
+            operations = [lambda: self.camera.MV_CC_StopGrabbing()]
+            if self.primary_rate_before_dual is not None:
+                operations.append(lambda: set_frame_rate_state(self.camera, *self.primary_rate_before_dual))
+            if self.primary_packet_delay_before_dual is not None:
+                operations.append(lambda: restore_packet_pacing(self.camera, self.primary_packet_delay_before_dual))
+            if self.trigger_original is not None:
+                operations.append(lambda: self.camera.MV_CC_SetEnumValue("TriggerMode", self.trigger_original))
+            operations += [lambda: self.camera.MV_CC_CloseDevice(), lambda: self.camera.MV_CC_DestroyHandle()]
+            for operation in operations:
+                try:
+                    operation()
+                except Exception as exc:
+                    self.set_status(f"关闭相机时出错：{exc}")
         self.camera = None
         self.selected = None
         self.current_frame = None
         self.current_frame_info = None
+        self.current_frame_host_ns = None
         self.trigger_original = None
+        self.primary_rate_before_dual = None
+        self.primary_packet_delay_before_dual = None
         self.video_label.setText("等待相机画面")
         self.pose_label.setText("位姿显示已关闭")
         self.pose_visualization = None
@@ -444,6 +552,190 @@ class CameraWindow(QMainWindow):
         self.gain_label.setText("未连接")
         self.setWindowTitle(WINDOW_TITLE)
         self.update_controls()
+
+    def on_pair_toggled(self, enabled):
+        if self.camera is not None:
+            if enabled:
+                self.enable_dual_preview()
+            else:
+                self.disable_dual_preview()
+        self.update_controls()
+
+    def set_dual_layout(self, enabled):
+        if enabled:
+            self.video_label.setMinimumSize(0, 240)
+        else:
+            self.video_label.setMinimumSize(960, 540)
+        self.primary_video_title.setText(f"相机 1：{self.selected['serial']}" if self.selected else "")
+        self.secondary_video_title.setText(
+            f"相机 2：{self.secondary_selected['serial']}" if self.secondary_selected else "")
+        self.primary_video_title.setVisible(enabled)
+        self.secondary_video_panel.setVisible(enabled)
+        for widget in (self.secondary_gain_label, self.secondary_gain_spin, self.secondary_gain_actual):
+            widget.setVisible(enabled)
+        if not enabled:
+            self.secondary_video_label.clear()
+
+    def enable_dual_preview(self):
+        if self.camera is None or self.secondary_camera is not None or not self.pair_toggle.isChecked():
+            return
+        serials = [serial for serial in unique_camera_serials(self.cameras) if serial != self.selected["serial"]]
+        if not serials:
+            self.set_dual_layout(False)
+            return
+        secondary = None
+        created = opened = grabbing = False
+        primary_stopped = False
+        secondary_rate_before_dual = None
+        secondary_packet_delay_before_dual = None
+        try:
+            selected = select_camera(self.cameras, serials[0])
+            self.timer.stop()
+            check(self.camera.MV_CC_StopGrabbing(), "stop camera 1 for dual preview")
+            primary_stopped = True
+            self.primary_rate_before_dual = frame_rate_state(self.camera, self.sdk)
+            set_frame_rate_state(self.camera, True, DUAL_PREVIEW_FPS)
+            self.primary_packet_delay_before_dual, _ = configure_packet_pacing(self.camera, self.sdk)
+            check(self.camera.MV_CC_StartGrabbing(), "restart camera 1 at dual frame rate")
+            primary_stopped = False
+
+            secondary = self.sdk.MvCamera()
+            check(secondary.MV_CC_CreateHandle(selected["device_info"]), "create camera 2 handle")
+            created = True
+            check(secondary.MV_CC_OpenDevice(self.sdk.MV_ACCESS_Exclusive, 0), "open camera 2")
+            opened = True
+            trigger = self.sdk.MVCC_ENUMVALUE()
+            secondary_trigger_original = (int(trigger.nCurValue) if
+                                          secondary.MV_CC_GetEnumValue("TriggerMode", trigger) == 0 else None)
+            check(secondary.MV_CC_SetEnumValue("TriggerMode", self.sdk.MV_TRIGGER_MODE_OFF),
+                  "disable camera 2 trigger")
+            secondary_rate_before_dual = frame_rate_state(secondary, self.sdk)
+            set_frame_rate_state(secondary, True, DUAL_PREVIEW_FPS)
+            secondary_packet_delay_before_dual, _ = configure_packet_pacing(secondary, self.sdk)
+            check(secondary.MV_CC_StartGrabbing(), "start camera 2")
+            grabbing = True
+
+            self.secondary_camera = secondary
+            self.secondary_selected = selected
+            self.secondary_trigger_original = secondary_trigger_original
+            self.secondary_rate_before_dual = secondary_rate_before_dual
+            self.secondary_packet_delay_before_dual = secondary_packet_delay_before_dual
+            self.secondary_frame = None
+            self.secondary_frame_info = None
+            self.secondary_frame_host_ns = None
+            self.current_frame = None
+            self.current_frame_info = None
+            self.current_frame_host_ns = None
+            self.frame_stats = new_frame_stats()
+            gain = self.sdk.MVCC_FLOATVALUE()
+            if secondary.MV_CC_GetFloatValue("Gain", gain) == 0:
+                self.secondary_gain_spin.blockSignals(True)
+                self.secondary_gain_spin.setRange(float(gain.fMin), float(gain.fMax))
+                self.secondary_gain_spin.setValue(float(gain.fCurValue))
+                self.secondary_gain_spin.blockSignals(False)
+                self.secondary_gain_actual.setText(f"实际 {gain.fCurValue:.4f}")
+            self.set_dual_layout(True)
+            self.timer.setInterval(165)
+            self.timer.start()
+            self.set_status(f"双相机预览：{self.selected['serial']} | {selected['serial']}，"
+                            f"均限速 {DUAL_PREVIEW_FPS:g} fps，包间隔 {DUAL_PACKET_DELAY_US:g} µs")
+        except (RuntimeError, OSError, ValueError) as exc:
+            cleanup_errors = []
+            steps = []
+            if grabbing:
+                steps.append(lambda: secondary.MV_CC_StopGrabbing())
+            if opened:
+                if secondary_rate_before_dual is not None:
+                    steps.append(lambda: set_frame_rate_state(secondary, *secondary_rate_before_dual))
+                if secondary_packet_delay_before_dual is not None:
+                    steps.append(lambda: restore_packet_pacing(secondary, secondary_packet_delay_before_dual))
+                steps.append(lambda: secondary.MV_CC_CloseDevice())
+            if created:
+                steps.append(lambda: secondary.MV_CC_DestroyHandle())
+            if self.primary_rate_before_dual is not None:
+                if not primary_stopped:
+                    steps.append(lambda: self.camera.MV_CC_StopGrabbing())
+                state = self.primary_rate_before_dual
+                steps.append(lambda state=state: set_frame_rate_state(self.camera, *state))
+                self.primary_rate_before_dual = None
+                primary_stopped = True
+            if self.primary_packet_delay_before_dual is not None:
+                ticks = self.primary_packet_delay_before_dual
+                steps.append(lambda ticks=ticks: restore_packet_pacing(self.camera, ticks))
+                self.primary_packet_delay_before_dual = None
+            if primary_stopped:
+                steps.append(lambda: self.camera.MV_CC_StartGrabbing())
+            for step in steps:
+                try:
+                    step()
+                except Exception as cleanup_exc:
+                    cleanup_errors.append(str(cleanup_exc))
+            self.timer.setInterval(50)
+            self.timer.start()
+            self.set_dual_layout(False)
+            detail = f"；恢复时出错：{'; '.join(cleanup_errors)}" if cleanup_errors else ""
+            self.set_status(f"第二台相机无法打开，保持单画面：{exc}{detail}；检查相机 IP 或是否被其他程序占用")
+        self.update_controls()
+
+    def disable_dual_preview(self, restart_primary=True):
+        if self.secondary_camera is not None:
+            secondary = self.secondary_camera
+            self.secondary_camera = None
+            operations = [lambda: secondary.MV_CC_StopGrabbing()]
+            if self.secondary_rate_before_dual is not None:
+                operations.append(lambda: set_frame_rate_state(secondary, *self.secondary_rate_before_dual))
+            if self.secondary_packet_delay_before_dual is not None:
+                operations.append(lambda: restore_packet_pacing(secondary, self.secondary_packet_delay_before_dual))
+            if self.secondary_trigger_original is not None:
+                operations.append(lambda: secondary.MV_CC_SetEnumValue("TriggerMode", self.secondary_trigger_original))
+            operations += [lambda: secondary.MV_CC_CloseDevice(), lambda: secondary.MV_CC_DestroyHandle()]
+            for operation in operations:
+                try:
+                    operation()
+                except Exception as exc:
+                    self.set_status(f"关闭第二台相机时出错：{exc}")
+        self.secondary_selected = None
+        self.secondary_rate_before_dual = None
+        self.secondary_packet_delay_before_dual = None
+        self.secondary_trigger_original = None
+        self.secondary_frame = None
+        self.secondary_frame_info = None
+        self.secondary_frame_host_ns = None
+        self.current_frame = None
+        self.current_frame_info = None
+        self.current_frame_host_ns = None
+        self.frame_stats = new_frame_stats()
+        self.stream_quality_label.setText("取帧质量：尚未取帧")
+        self.set_dual_layout(False)
+        if self.camera is not None and (self.primary_rate_before_dual is not None or
+                                        self.primary_packet_delay_before_dual is not None):
+            try:
+                self.timer.stop()
+                self.camera.MV_CC_StopGrabbing()
+                if self.primary_rate_before_dual is not None:
+                    set_frame_rate_state(self.camera, *self.primary_rate_before_dual)
+                if self.primary_packet_delay_before_dual is not None:
+                    restore_packet_pacing(self.camera, self.primary_packet_delay_before_dual)
+                self.primary_rate_before_dual = None
+                self.primary_packet_delay_before_dual = None
+                if restart_primary:
+                    check(self.camera.MV_CC_StartGrabbing(), "restart camera 1")
+                    self.timer.setInterval(50)
+                    self.timer.start()
+            except (RuntimeError, OSError) as exc:
+                self.set_status(f"恢复相机 1 帧率失败：{exc}")
+        self.update_controls()
+
+    def set_secondary_gain(self, value):
+        if self.secondary_camera is None:
+            return
+        result = self.secondary_camera.MV_CC_SetFloatValue("Gain", value)
+        if result:
+            self.set_status(f"设置相机 2 增益失败：0x{result:08x}")
+            return
+        gain = self.sdk.MVCC_FLOATVALUE()
+        if self.secondary_camera.MV_CC_GetFloatValue("Gain", gain) == 0:
+            self.secondary_gain_actual.setText(f"实际 {gain.fCurValue:.4f}")
 
     def update_gain_display(self, value, preserve_input=False):
         self.setting_gain_slider = True
@@ -494,30 +786,64 @@ class CameraWindow(QMainWindow):
         try:
             frame, info = grab_frame(self.camera, self.sdk, 100)
         except RuntimeError:
-            return
-        if info["lost_packets"]:
-            return
-        self.current_frame, self.current_frame_info = frame, info
-        display = frame
-        if self.pose_toggle.isChecked() and self.intrinsics is not None:
-            if self.pose_future is not None and self.pose_future.done():
-                try:
-                    self.pose_visualization, message = self.pose_future.result()
-                    self.pose_label.setText(message)
-                except (RuntimeError, cv2.error, ValueError) as exc:
-                    self.pose_label.setText(f"位姿计算失败：{exc}")
-                self.pose_future = None
-            if self.pose_future is None:
-                _, K, D, square_mm = self.intrinsics
-                self.pose_future = self.pose_executor.submit(
-                    self.process_pose_frame, frame.copy(), K.copy(), D.copy(), square_mm)
-            if self.pose_visualization is not None:
-                display = self.pose_visualization
+            frame = info = None
+        self.record_frame_stats("camera1", info)
+        if info is not None and not info["lost_packets"]:
+            self.current_frame, self.current_frame_info = frame, info
+            self.current_frame_host_ns = time.time_ns()
+            display = frame
+            if self.pose_toggle.isChecked() and self.intrinsics is not None:
+                if self.pose_future is not None and self.pose_future.done():
+                    try:
+                        self.pose_visualization, message = self.pose_future.result()
+                        self.pose_label.setText(message)
+                    except (RuntimeError, cv2.error, ValueError) as exc:
+                        self.pose_label.setText(f"位姿计算失败：{exc}")
+                    self.pose_future = None
+                if self.pose_future is None:
+                    _, K, D, square_mm = self.intrinsics
+                    self.pose_future = self.pose_executor.submit(
+                        self.process_pose_frame, frame.copy(), K.copy(), D.copy(), square_mm)
+                if self.pose_visualization is not None:
+                    display = self.pose_visualization
+            self.display_frame(self.video_label, display)
+        if self.secondary_camera is not None:
+            try:
+                second_frame, second_info = grab_frame(self.secondary_camera, self.sdk, 100)
+            except RuntimeError:
+                second_frame = second_info = None
+            self.record_frame_stats("camera2", second_info)
+            if second_info is not None and not second_info["lost_packets"]:
+                self.secondary_frame, self.secondary_frame_info = second_frame, second_info
+                self.secondary_frame_host_ns = time.time_ns()
+                self.display_frame(self.secondary_video_label, second_frame)
+        summaries = []
+        for name, label in (("camera1", "相机 1"), ("camera2", "相机 2")):
+            if name == "camera2" and self.secondary_camera is None:
+                continue
+            stats = self.frame_stats[name]
+            summaries.append(f"{label} 完整 {stats['frames'] - stats['incomplete']}/{stats['frames']}，"
+                             f"丢包 {stats['lost_packets']}，未取到帧 {stats['read_errors']}")
+        self.stream_quality_label.setText("取帧质量：" + " | ".join(summaries))
+
+    def record_frame_stats(self, name, info):
+        stats = self.frame_stats[name]
+        if info is None:
+            stats["read_errors"] += 1
+        else:
+            stats["frames"] += 1
+            lost = int(info["lost_packets"])
+            stats["lost_packets"] += lost
+            if lost:
+                stats["incomplete"] += 1
+
+    @staticmethod
+    def display_frame(label, display):
         rgb = cv2.cvtColor(display, cv2.COLOR_BGR2RGB)
         height, width = rgb.shape[:2]
         qimage = QImage(rgb.data, width, height, rgb.strides[0], QImage.Format_RGB888).copy()
-        self.video_label.setPixmap(QPixmap.fromImage(qimage).scaled(
-            self.video_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        label.setPixmap(QPixmap.fromImage(qimage).scaled(
+            label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
     @staticmethod
     def process_pose_frame(frame, K, D, square_mm):
@@ -548,48 +874,79 @@ class CameraWindow(QMainWindow):
             except OSError as exc:
                 self.set_status(f"文件夹不可用：{exc}")
 
+    def secondary_pair_directory(self):
+        if self.output_dir is None or self.secondary_selected is None:
+            return None
+        return self.output_dir / f"{STEREO_PAIRS_SUBDIR}_{self.secondary_selected['serial']}"
+
     def save_frame(self):
         if self.output_dir is None or self.camera is None or self.current_frame is None:
             self.set_status("请先连接相机并选择图片文件夹")
             return
-        image_path = None
+        created_paths = []
         try:
             pair_id = self.pair_spin.value() if self.pair_toggle.isChecked() else None
-            capture_dir = self.output_dir / STEREO_PAIRS_SUBDIR if pair_id is not None else self.output_dir
-            if pair_id is not None:
-                capture_dir.mkdir(exist_ok=True)
-            validate_capture_folder(capture_dir, self.selected["model"], self.selected["serial"])
-            if pair_id is not None:
-                for path in capture_dir.glob("frame_*.json"):
-                    if json.loads(path.read_text(encoding="utf-8")).get("pair_id") == pair_id:
-                        raise RuntimeError(f"外参组号 {pair_id} 已在当前相机文件夹保存；请换组号或检查照片")
-                gray = cv2.cvtColor(self.current_frame, cv2.COLOR_BGR2GRAY)
-                if not cv2.findChessboardCornersSB(gray, (9, 6))[0]:
-                    raise RuntimeError("未检出完整 9×6 棋盘，本组未保存")
-            image_path = next_frame_path(capture_dir)
-            if not cv2.imwrite(str(image_path), self.current_frame):
-                raise RuntimeError(f"无法保存图像：{image_path}")
-            gray = cv2.cvtColor(self.current_frame, cv2.COLOR_BGR2GRAY)
-            metadata = {
-                "capture_app": "mvs_gui",
-                "camera_model": self.selected["model"], "camera_serial": self.selected["serial"],
-                "camera_ip": self.selected["ip"],
-                "host_interface_ip": self.selected["host_interface_ip"],
-                "sdk_version": f"0x{self.sdk.MvCamera.MV_CC_GetSDKVersion():08x}",
-                "settings": camera_metadata(self.camera, self.sdk), "frame": self.current_frame_info,
-                "image_stats": {"mean": float(np.mean(gray)), "min": int(gray.min()),
-                                "max": int(gray.max())},
-                "conversion": "MVS RGB8 then OpenCV BGR8", "capture_unix_ns": time.time_ns(),
-            }
-            if pair_id is not None:
-                metadata["pair_id"] = pair_id
-            image_path.with_suffix(".json").write_text(
-                json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8")
+            dual_expected = pair_id is not None and len(unique_camera_serials(self.cameras)) >= 2
+            if dual_expected and self.secondary_camera is None:
+                raise RuntimeError("已发现两台相机，但第二台未连接；本组不保存不完整配对")
+            primary_dir = self.output_dir / STEREO_PAIRS_SUBDIR if pair_id is not None else self.output_dir
+            captures = [(self.camera, self.selected, self.current_frame, self.current_frame_info,
+                         self.current_frame_host_ns, primary_dir)]
+            if pair_id is not None and self.secondary_camera is not None:
+                second_dir = self.secondary_pair_directory()
+                captures.append((self.secondary_camera, self.secondary_selected, self.secondary_frame,
+                                 self.secondary_frame_info, self.secondary_frame_host_ns, second_dir))
+                now = time.time_ns()
+                times = [capture[4] for capture in captures]
+                if any(capture[2] is None or capture[3] is None or timestamp is None or
+                       now - timestamp > 1_000_000_000 for capture, timestamp in zip(captures, times)):
+                    raise RuntimeError("两台相机没有新鲜的完整画面；请等待预览恢复后重试")
+                if abs(times[0] - times[1]) > 300_000_000:
+                    raise RuntimeError("两台相机最近帧的接收时间相差超过 300 ms；本组未保存")
+            for camera, selected, frame, info, host_ns, folder in captures:
+                folder.mkdir(parents=True, exist_ok=True)
+                validate_capture_folder(folder, selected["model"], selected["serial"])
+                if pair_id is not None:
+                    for path in folder.glob("frame_*.json"):
+                        if json.loads(path.read_text(encoding="utf-8")).get("pair_id") == pair_id:
+                            raise RuntimeError(f"{selected['serial']} 的外参组号 {pair_id} 已保存")
+                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    if not cv2.findChessboardCornersSB(gray, (9, 6))[0]:
+                        raise RuntimeError(f"{selected['serial']} 未检出完整 9×6 棋盘，本组未保存")
+            pair_capture_ns = time.time_ns()
+            saved = []
+            for camera, selected, frame, info, host_ns, folder in captures:
+                image_path = next_frame_path(folder)
+                created_paths.append(image_path)
+                if not cv2.imwrite(str(image_path), frame):
+                    raise RuntimeError(f"无法保存图像：{image_path}")
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                metadata = {
+                    "capture_app": "mvs_gui",
+                    "camera_model": selected["model"], "camera_serial": selected["serial"],
+                    "camera_ip": selected["ip"],
+                    "host_interface_ip": selected["host_interface_ip"],
+                    "sdk_version": f"0x{self.sdk.MvCamera.MV_CC_GetSDKVersion():08x}",
+                    "settings": camera_metadata(camera, self.sdk), "frame": info,
+                    "image_stats": {"mean": float(np.mean(gray)), "min": int(gray.min()),
+                                    "max": int(gray.max())},
+                    "conversion": "MVS RGB8 then OpenCV BGR8", "capture_unix_ns": pair_capture_ns,
+                    "frame_host_unix_ns": host_ns,
+                }
+                if pair_id is not None:
+                    metadata["pair_id"] = pair_id
+                if len(captures) == 2:
+                    metadata["paired_camera_serial"] = next(
+                        item[1]["serial"] for item in captures if item[1]["serial"] != selected["serial"])
+                json_path = image_path.with_suffix(".json")
+                created_paths.append(json_path)
+                json_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8")
+                saved.append(image_path)
             label = f"外参组 {pair_id}" if pair_id is not None else "普通采集"
-            self.set_status(f"已保存 {image_path} 和同名 JSON（{label}）")
+            self.set_status(f"已保存 {label}：{', '.join(str(path) for path in saved)}（各有同名 JSON）")
         except (RuntimeError, OSError, ValueError, json.JSONDecodeError, cv2.error) as exc:
-            if image_path is not None and not image_path.with_suffix(".json").exists():
-                image_path.unlink(missing_ok=True)
+            for path in reversed(created_paths):
+                path.unlink(missing_ok=True)
             self.set_status(f"保存失败：{exc}")
 
     def start_calibration(self):
@@ -707,6 +1064,8 @@ class CameraWindow(QMainWindow):
             self.stereo_dialog = StereoCalibrationDialog(self)
         if not self.stereo_dialog.folders[0].text() and self.selected is not None:
             self.stereo_dialog.use_current(0)
+        if not self.stereo_dialog.folders[1].text() and self.secondary_camera is not None:
+            self.stereo_dialog.use_current(1)
         self.stereo_dialog.show()
         self.stereo_dialog.raise_()
         self.stereo_dialog.activateWindow()
