@@ -175,6 +175,7 @@ class CameraWindow(QMainWindow):
         self.setting_gain_slider = False
         self.gain_min = 0.0
         self.gain_max = 1.0
+        self.last_gain_requested = None
         self.timer = QTimer(self)
         self.timer.setInterval(50)
         self.timer.timeout.connect(self.update_frame)
@@ -269,7 +270,12 @@ class CameraWindow(QMainWindow):
         self.gain_spin.setEnabled(False)
         self.gain_spin.valueChanged.connect(self.set_gain_value)
         gain_row.addWidget(self.gain_spin)
+        self.apply_gain_button = QPushButton("应用增益")
+        self.apply_gain_button.setEnabled(False)
+        self.apply_gain_button.clicked.connect(self.apply_gain_input)
+        gain_row.addWidget(self.apply_gain_button)
         self.gain_label = QLabel("未连接")
+        self.gain_label.setToolTip("相机 SDK 读取的实际增益；设备可能只支持离散档位")
         gain_row.addWidget(self.gain_label)
         layout.addLayout(gain_row)
 
@@ -319,6 +325,7 @@ class CameraWindow(QMainWindow):
         self.save_button.setEnabled(connected and self.output_dir is not None)
         self.gain_slider.setEnabled(connected)
         self.gain_spin.setEnabled(connected)
+        self.apply_gain_button.setEnabled(connected)
         self.find_intrinsics_button.setEnabled(connected)
         self.pose_toggle.setEnabled(connected and self.intrinsics is not None)
         if not connected or self.intrinsics is None:
@@ -376,6 +383,7 @@ class CameraWindow(QMainWindow):
             gain = self.sdk.MVCC_FLOATVALUE()
             check(self.camera.MV_CC_GetFloatValue("Gain", gain), "read gain")
             self.gain_min, self.gain_max = float(gain.fMin), float(gain.fMax)
+            self.last_gain_requested = None
             self.setting_gain_slider = True
             self.gain_slider.setRange(0, max(1, round((self.gain_max - self.gain_min) * 10)))
             self.gain_spin.setRange(self.gain_min, self.gain_max)
@@ -427,15 +435,17 @@ class CameraWindow(QMainWindow):
         self.pose_label.setText("位姿显示已关闭")
         self.pose_visualization = None
         self.pose_future = None
+        self.last_gain_requested = None
         self.gain_label.setText("未连接")
         self.setWindowTitle(WINDOW_TITLE)
         self.update_controls()
 
-    def update_gain_display(self, value):
+    def update_gain_display(self, value, preserve_input=False):
         self.setting_gain_slider = True
         self.gain_slider.setValue(round((value - self.gain_min) * 10))
-        self.gain_spin.setValue(value)
-        self.gain_label.setText(f"实际 {value:.2f}")
+        if not preserve_input:
+            self.gain_spin.setValue(value)
+        self.gain_label.setText(f"相机实际 {value:.4f}")
         self.setting_gain_slider = False
 
     def set_gain(self, position):
@@ -446,16 +456,32 @@ class CameraWindow(QMainWindow):
 
     def set_gain_value(self, value):
         if not self.setting_gain_slider and self.camera is not None:
-            self.write_gain(value)
+            self.write_gain(value, preserve_input=True)
 
-    def write_gain(self, requested):
+    def apply_gain_input(self):
+        if self.camera is None:
+            return
+        self.setting_gain_slider = True
+        self.gain_spin.interpretText()
+        self.setting_gain_slider = False
+        requested = self.gain_spin.value()
+        if self.last_gain_requested is None or abs(requested - self.last_gain_requested) > 1e-6:
+            self.write_gain(requested, preserve_input=True)
+
+    def write_gain(self, requested, preserve_input=False):
         result = self.camera.MV_CC_SetFloatValue("Gain", requested)
         if result:
             self.set_status(f"设置增益失败：0x{result:08x}")
             return
+        self.last_gain_requested = requested
         gain = self.sdk.MVCC_FLOATVALUE()
         if self.camera.MV_CC_GetFloatValue("Gain", gain) == 0:
-            self.update_gain_display(float(gain.fCurValue))
+            actual = float(gain.fCurValue)
+            self.update_gain_display(actual, preserve_input=preserve_input)
+            if preserve_input and abs(actual - requested) >= 0.005:
+                self.set_status(f"请求增益 {requested:.2f}，相机实际回读 {actual:.4f}；设备可能使用离散增益档位")
+        else:
+            self.set_status("增益已写入，但读取相机实际增益失败")
 
     def update_frame(self):
         if self.camera is None:

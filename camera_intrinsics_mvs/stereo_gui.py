@@ -20,7 +20,8 @@ class StereoCalibrationDialog(QDialog):
         self.setWindowTitle("双相机棋盘格外参标定")
         self.resize(900, 500)
         layout = QVBoxLayout(self)
-        hint = QLabel("每组照片须为棋盘保持不动时两台相机分别拍摄；勾选主界面的“外参配对采集”，两台相机使用同一组号。")
+        hint = QLabel("这里为每台相机选择整个照片文件夹，不是各选一张。建议每个文件夹拍 10～20 张；"
+                      "每组棋盘保持不动，勾选主界面的“外参配对采集”，两台相机使用同一组号。")
         hint.setWordWrap(True)
         layout.addWidget(hint)
 
