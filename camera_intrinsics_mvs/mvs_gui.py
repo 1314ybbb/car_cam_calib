@@ -265,6 +265,7 @@ class CameraWindow(QMainWindow):
         self.gain_spin = QDoubleSpinBox()
         self.gain_spin.setDecimals(2)
         self.gain_spin.setSingleStep(0.1)
+        self.gain_spin.setKeyboardTracking(False)
         self.gain_spin.setEnabled(False)
         self.gain_spin.valueChanged.connect(self.set_gain_value)
         gain_row.addWidget(self.gain_spin)
